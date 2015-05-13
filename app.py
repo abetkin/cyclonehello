@@ -46,13 +46,52 @@ class Mona(Monast):
         server = self.servers.get(servername)
         queuename = kw.get('queue')
         queue = server.status.queues.get(queuename)
-        q_info = json.dumps(queue.__dict__)
-        event = kw.get('event')
+
+        info = QueueInfo(self)
+        try:
+            chan = info.channels.values()[-1]
+        except IndexError:
+            return
+
         
         for client in clients:
             client.sendEvent("""\
-event => %(event)s, ___queue => %(q_info)s""" % locals())
-            
+chan => %s""" % chan.__dict__)
+
+
+
+
+class QueueInfo(object):
+
+    SERVER = 'Main'
+    FIELDS = [
+        'onhold_max', 'num_calls',
+    ]
+
+    '''calleridname
+    starttime'''
+
+    def __init__(self, monast, queuename):
+        self.server = monast.servers.get(self.SERVER)
+        self.clients = self.server.status.queueClients
+        self.channels = self.server.status.channels
+        self.queue = self.server.status.queues.values()[0]
+
+    def jsonify(self, ):
+        dic = dict((field, getattr(self, field)) for field in self.FIELDS)
+        return json.dumps(dic)
+
+
+    @property
+    def onhold_max(self, ):
+        return 2
+
+    @property
+    def num_calls(self):
+        return 1
+
+
+
 if __name__ == '__main__':
     reactor.listenTCP(8899, Application(), interface="0.0.0.0")
     RunMonast(Mona)
