@@ -15,7 +15,7 @@ var Message = React.createClass({
     source: new EventSource('/eventsource'),
 
     getInitialState: function() {
-        return {message: '-'};
+        return {message: '--'};
     },
     componentDidMount: function() {
         this.source.onmessage = function(e) {
