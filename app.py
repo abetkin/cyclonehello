@@ -77,12 +77,11 @@ class QueueEvent(dict):
     #     1
 
     @classmethod
-    def needs_update(cls, queue_name):
+    def up_to_date(cls, queue_name):
         server = cls.monast.servers.get(cls.SERVER)
         for q_name, iden in cls.clients:
             if queue_name == q_name:
                 return (q_name, iden) in server.status.queueClients
-        return True
 
 
     @classmethod
@@ -91,11 +90,12 @@ class QueueEvent(dict):
         server = monast.servers.get(cls.SERVER)
 
         queue_clients = server.status.queueClients
-        events = []
+        events = [] # X
 
         for q_name, clients in groupby(queue_clients, key=lambda item: item[0]):
             # alr processed
-            if not cls.needs_update(q_name):
+            # TODO only timer up to date
+            if cls.up_to_date(q_name):
                 continue
             clients = list(clients)
             waiting_longest = max(clients,

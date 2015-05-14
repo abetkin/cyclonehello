@@ -14,43 +14,41 @@ var QueuesTable= React.createClass({
     eventsource: new EventSource('/eventsource'),
 
     onEvent: function(ev) {
-      alert(ev);
-      var qname = ev.data['queue_name'];
-      var queues = this.state.queues;
-      queues[qname] = ev.data;
-      this.setState({queues: queues})
+      data = JSON.parse(ev.data)
+      console.log(data)
+      this.setState({data: data})
+      //var qname = ev.data['queue_name'];
+      //var queues = this.state.queues.clone(); // ?
+      //queues[qname] = ev.data;
+      //this.setState({queues: queues})
 
     },
 
 
     getInitialState: function() {
-        return {queues: {}}
+        return {
+          queues: {},
+          data: {},
+        }
     },
     componentDidMount: function() {
       this.eventsource.onmessage = this.onEvent;
     },
 
     render: function(){
-        var queues = this.state.queues;
+        var data = this.state.data;
+        //console.log(data)
         return (
           // if this.state.queues
           <Table responsive>
             <thead>
-              {Object.keys(queues).map(function(name) {
-                return (
-                  <th>{name}</th>
-                )})
-              }
+                  <th>{this.state.data.queue_name}</th>
             </thead>
             <tbody>
-              {Object.keys(queues).map(function(name) {
-                return (
                 <tr>
-                  <td>Звонков: queues[name].count</td>
-                  <td>Ожидание: queues[name].time_waiting</td>
+                  <td>Звонков: {this.state.data.count}</td>
+                  <td>Ожидание: {this.state.data.time_waiting}</td>
                 </tr>
-                )})
-              }
             </tbody>
           </Table>
       )
