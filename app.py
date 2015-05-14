@@ -8,12 +8,13 @@ import cyclone.web
 import cyclone.sse
 from monast import Monast, RunMonast
 
+import ipdb
+
+
 class MainHandler(cyclone.web.RequestHandler):
     def get(self):
         self.render('index.html')
 
-
-clients = []
 
 class Application(cyclone.web.Application):
     def __init__(self):
@@ -33,43 +34,120 @@ class Application(cyclone.web.Application):
 
 class LiveHandler(cyclone.sse.SSEHandler):
     def bind(self):
-        clients.append(self)
+        Mona.http_clients.append(self)
 
     def unbind(self):
-        clients.remove(self)
+        Mona.http_clients.remove(self)
 
 
 class Mona(Monast):
 
+    http_clients = []
+
+    def sendEvent(self, event):
+        for http_client in self.http_clients:
+            http_client.sendEvent(event)
+
     def _updateQueue(self, servername, **kw):
         super(Mona, self)._updateQueue(servername, **kw)
-        server = self.servers.get(servername)
-        queuename = kw.get('queue')
-        queue = server.status.queues.get(queuename)
-
-        info = QueueInfo(self)
-        try:
-            chan = info.channels.values()[-1]
-        except IndexError:
-            return
-
-        
-        for client in clients:
-            client.sendEvent("""\
-chan => %s""" % chan.__dict__)
+        if QueueEvent.monast is None:
+            QueueEvent.monast = self
+        with ipdb.launch_ipdb_on_exception():
+            QueueEvent.update()
 
 
 
+from itertools import groupby
 
-class QueueInfo(object):
+class QueueEvent(dict):
+    '''
+    Info about the longest waiting client in this queue.
+    Defines server-sent event to browser.
+    '''
 
     SERVER = 'Main'
-    FIELDS = [
-        'onhold_max', 'num_calls',
-    ]
+    
+    monast = None # TODO fix
 
-    '''calleridname
-    starttime'''
+    clients = {} # 3 active clients
+
+
+    # @classmethod
+    # def get_new_clients(cls):
+    #     1
+
+    @classmethod
+    def needs_update(cls, queue_name):
+        server = cls.monast.servers.get(cls.SERVER)
+        for q_name, iden in cls.clients:
+            if queue_name == q_name:
+                return (q_name, iden) in server.status.queueClients
+        return True
+
+
+    @classmethod
+    def update(cls):
+        monast = cls.monast
+        server = monast.servers.get(cls.SERVER)
+
+        queue_clients = server.status.queueClients
+        events = []
+
+        for q_name, clients in groupby(queue_clients, key=lambda item: item[0]):
+            # alr processed
+            if not cls.needs_update(q_name):
+                continue
+            clients = list(clients)
+            waiting_longest = max(clients,
+                                  key=lambda k: queue_clients[k].seconds)
+            client = queue_clients[waiting_longest]
+            cls.clients[waiting_longest] = client
+            event = cls(
+                queue_name = q_name,
+                time_waiting = client.seconds,
+                count = len(clients),
+            )
+            events.append(event)
+
+        # if events:
+        #
+        #     ipdb.set_trace()
+            monast.sendEvent(json.dumps(event))
+
+
+    #
+    # @classmethod
+    # def update(cls, monast):
+    #     server = monast.servers.get(cls.SERVER)
+    #     for tupl in cls.clients.items():
+    #         if tupl in server.status.queueClients:
+    #             continue
+    #         # import ipdb
+    #         # ipdb.set_trace()
+    #         cls.clients.remove(tupl)
+    #         queue_name, _ = tupl
+    #         queue_clients = filter(lambda c: c[0] == queue_name,
+    #                                server.status.queueClients)
+    #         longest_waiting = max(queue_clients,
+    #                               key=lambda k: queue_clients[k].seconds)
+    #         cls.clients[longest_waiting] = queue_clients[longest_waiting]
+    #
+    #         event = cls(
+    #             queue_name = queue_name,
+    #             time_waiting = queue_clients[longest_waiting].seconds,
+    #             count = len(queue_clients),
+    #         )
+    #         monast.send(json.dumps(event))
+    '''
+    def __init__(self, name):
+        1
+    
+    # current_channel
+    # keys(): del self._current
+
+    @property
+    def time(self):
+        1
 
     def __init__(self, monast, queuename):
         self.server = monast.servers.get(self.SERVER)
@@ -82,13 +160,23 @@ class QueueInfo(object):
         return json.dumps(dic)
 
 
-    @property
+    def channels(self):
+        1
+
+    
+    @field
     def onhold_max(self, ):
         return 2
 
-    @property
+    @field
     def num_calls(self):
         return 1
+    
+    @field
+    def starttime(self):
+        1
+    '''
+
 
 
 

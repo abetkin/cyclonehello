@@ -10,35 +10,51 @@ var ButtonToolbar = RB.ButtonToolbar;
 var Table = RB.Table;
 
 
+var QueuesTable= React.createClass({
+    eventsource: new EventSource('/eventsource'),
 
-var Message = React.createClass({
-    source: new EventSource('/eventsource'),
+    onEvent: function(ev) {
+      alert(ev);
+      var qname = ev.data['queue_name'];
+      var queues = this.state.queues;
+      queues[qname] = ev.data;
+      this.setState({queues: queues})
+
+    },
+
 
     getInitialState: function() {
-        return {message: '--'};
+        return {queues: {}}
     },
     componentDidMount: function() {
-        this.source.onmessage = function(e) {
-          this.setState({message: e.data});
-        }.bind(this);
+      this.eventsource.onmessage = this.onEvent;
     },
 
     render: function(){
+        var queues = this.state.queues;
         return (
-            <div>
-              {this.state.message}
-            </div>
-        )
+          // if this.state.queues
+          <Table responsive>
+            <thead>
+              {Object.keys(queues).map(function(name) {
+                return (
+                  <th>{name}</th>
+                )})
+              }
+            </thead>
+            <tbody>
+              {Object.keys(queues).map(function(name) {
+                return (
+                <tr>
+                  <td>Звонков: queues[name].count</td>
+                  <td>Ожидание: queues[name].time_waiting</td>
+                </tr>
+                )})
+              }
+            </tbody>
+          </Table>
+      )
     }
 });
 
-
-var grid = (
-  <Row className='show-grid'>
-      <Col xs={4}><Message/></Col>
-      <Col xs={4}>-</Col>
-      <Col xs={4}>-</Col>
-  </Row>
-);
-
-React.render(grid, document.getElementById("main"));
+React.render(<QueuesTable/>, document.getElementById("main"));
