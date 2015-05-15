@@ -55,13 +55,14 @@ class Mona(Monast):
             Queue.update_all()
 
 
+import time
 
 class Queue(object):
     
     SERVER = 'Main'
     
     instances = {}
-    
+
     longest_waiting = None
     count = 0
 
@@ -82,6 +83,10 @@ class Queue(object):
             if q_name == self.q_name:
                 yield (q_name, iden)
     
+    def get_seconds(self, client):
+        client = self.server.status.queueClients[client]
+        return int(time.time() - client.jointime)
+    
     def update(self):
         needs_update = False
         clients = list(self.get_clients())
@@ -101,7 +106,7 @@ class Queue(object):
             if self.longest_waiting is None:
                 time = '-'
             else:
-                time = self.server.status.queueClients[self.longest_waiting].seconds
+                time = self.get_seconds(self.longest_waiting)
             event = dict(
                 queue_name = self.q_name,
                 time_waiting = time,
