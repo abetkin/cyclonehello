@@ -1,14 +1,3 @@
-
-var RB = ReactBootstrap;
-var Grid = RB.Grid;
-var Row = RB.Row;
-var Col = RB.Col;
-var ListGroup = RB.ListGroup;
-var ListGroupItem = RB.ListGroupItem;
-var Button = RB.Button;
-var ButtonToolbar = RB.ButtonToolbar;
-var Table = RB.Table;
-
 var Timer= React.createClass({
     getInitialState: function() {
       return {value: '-'}
@@ -70,25 +59,29 @@ var QueuesTable= React.createClass({
         var queues = this.state.queues;
 
         return (
-          <Table responsive>
-            <thead>
-                {q_names.map(function(q_name) {
-                return <th>{q_name}</th>
-                }, this)}
-            </thead>
-            <tbody>
-                <tr>
-                  {q_names.map(function(q_name) {
-                    return <td>Звонков: {queues[q_name].count}</td>
-                  }, this)}
-                </tr>
-                <tr>
-                  {q_names.map(function(q_name) {
-                    return <td>Ожидание: <Timer time={queues[q_name].time_waiting}/></td>
-                  }, this)}
-                </tr>
-            </tbody>
-          </Table>
+          <div className="row">
+            <div className="col-md-6">
+              <table className="table">
+                <thead>
+                    {q_names.map(function(q_name) {
+                    return <th>{q_name}</th>
+                    }, this)}
+                </thead>
+                <tbody>
+                    <tr>
+                      {q_names.map(function(q_name) {
+                        return <td>Звонков: {queues[q_name].count}</td>
+                      }, this)}
+                    </tr>
+                    <tr>
+                      {q_names.map(function(q_name) {
+                        return <td>Ожидание: <Timer time={queues[q_name].time_waiting}/></td>
+                      }, this)}
+                    </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
       )
     }
 });
