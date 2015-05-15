@@ -52,32 +52,40 @@ var QueuesTable= React.createClass({
 
     onEvent: function(ev) {
       data = JSON.parse(ev.data)
-      this.setState({data: data})
+      info = {}
+      info[data.queue_name] = data
+      this.state.queues[data.queue_name] = data
+      var queues = jQuery.extend(info, this.state.queues);
+      console.log('q> ', queues)
+      this.setState({queues: queues})
     },
     getInitialState: function() {
-        return {
-          queues: {},
-          data: {},
-        }
+        return {queues: {}}
     },
     componentDidMount: function() {
       this.eventsource.onmessage = this.onEvent;
     },
     render: function(){
-        var data = this.state.data;
-        //console.log(data)
+        var q_names = Object.keys(this.state.queues);
+        var queues = this.state.queues;
+
         return (
-          // if this.state.queues
           <Table responsive>
             <thead>
-                  <th>{data.queue_name}</th>
+                {q_names.map(function(q_name) {
+                return <th>{q_name}</th>
+                }, this)}
             </thead>
             <tbody>
                 <tr>
-                  <td>Звонков: {this.state.data.count}</td>
+                  {q_names.map(function(q_name) {
+                    return <td>Звонков: {queues[q_name].count}</td>
+                  }, this)}
                 </tr>
                 <tr>
-                  <td>Ожидание: <Timer time={this.state.data.time_waiting}/></td>
+                  {q_names.map(function(q_name) {
+                    return <td>Ожидание: <Timer time={queues[q_name].time_waiting}/></td>
+                  }, this)}
                 </tr>
             </tbody>
           </Table>
