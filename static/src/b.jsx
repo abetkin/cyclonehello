@@ -56,7 +56,6 @@ var QueuesTable= React.createClass({
       info[data.queue_name] = data
       this.state.queues[data.queue_name] = data
       var queues = jQuery.extend(info, this.state.queues);
-      console.log('q> ', queues)
       this.setState({queues: queues})
     },
     getInitialState: function() {
@@ -67,6 +66,7 @@ var QueuesTable= React.createClass({
     },
     render: function(){
         var q_names = Object.keys(this.state.queues);
+        q_names.sort();
         var queues = this.state.queues;
 
         return (
