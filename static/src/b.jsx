@@ -9,23 +9,36 @@ var Button = RB.Button;
 var ButtonToolbar = RB.ButtonToolbar;
 var Table = RB.Table;
 
+var Timer= React.createClass({
+    getInitialState: function() {
+      return {
+        value: undefined
+      }
+    },
+    componentDidMount: function() {
+      window.setInterval(function(){
+        if (this.state.value) {
+          this.setState({value: this.state.value + 1})
+        }
+      }.bind(this), 1000);
+    },
+    componentWillReceiveProps: function(nextProps) {
+      this.setState({value: nextProps.time})
+    },
+    render: function(){
+        return (
+          <div>{this.state.value}</div>
+      )
+    }
+});
 
 var QueuesTable= React.createClass({
     eventsource: new EventSource('/eventsource'),
 
     onEvent: function(ev) {
       data = JSON.parse(ev.data)
-      console.log(data)
       this.setState({data: data})
-      //var qname = ev.data['queue_name'];
-      //var queues = this.state.queues.clone(); // ?
-      //queues[qname] = ev.data;
-      //this.setState({queues: queues})
-
     },
-
-  // timer
-
     getInitialState: function() {
         return {
           queues: {},
@@ -35,7 +48,6 @@ var QueuesTable= React.createClass({
     componentDidMount: function() {
       this.eventsource.onmessage = this.onEvent;
     },
-
     render: function(){
         var data = this.state.data;
         //console.log(data)
@@ -50,7 +62,7 @@ var QueuesTable= React.createClass({
                   <td>Звонков: {this.state.data.count}</td>
                 </tr>
                 <tr>
-                  <td>Ожидание: {this.state.data.time_waiting}</td>
+                  <td>Ожидание: <Timer time={this.state.data.time_waiting}/></td>
                 </tr>
             </tbody>
           </Table>

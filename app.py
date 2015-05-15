@@ -63,7 +63,7 @@ class Queue(object):
     instances = {}
     
     longest_waiting = None
-    count = None
+    count = 0
 
     @classmethod
     def create_instances(cls, monast):
@@ -85,7 +85,11 @@ class Queue(object):
     def update(self):
         needs_update = False
         clients = list(self.get_clients())
-        if self.longest_waiting not in self.server.status.queueClients:
+        if not clients:
+            if self.longest_waiting is not None:
+                self.longest_waiting = None
+                needs_update = True
+        elif self.longest_waiting not in self.server.status.queueClients:
             needs_update = True
             self.longest_waiting = max(
                 clients,
@@ -94,7 +98,10 @@ class Queue(object):
             needs_update = True
             self.count = len(clients)
         if needs_update:
-            time = self.server.status.queueClients[self.longest_waiting].seconds
+            if self.longest_waiting is None:
+                time = '-'
+            else:
+                time = self.server.status.queueClients[self.longest_waiting].seconds
             event = dict(
                 queue_name = self.q_name,
                 time_waiting = time,
