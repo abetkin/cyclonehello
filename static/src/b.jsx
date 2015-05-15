@@ -24,6 +24,7 @@ var QueuesTable= React.createClass({
 
     },
 
+  // timer
 
     getInitialState: function() {
         return {
@@ -42,11 +43,13 @@ var QueuesTable= React.createClass({
           // if this.state.queues
           <Table responsive>
             <thead>
-                  <th>{this.state.data.queue_name}</th>
+                  <th>{data.queue_name}</th>
             </thead>
             <tbody>
                 <tr>
                   <td>Звонков: {this.state.data.count}</td>
+                </tr>
+                <tr>
                   <td>Ожидание: {this.state.data.time_waiting}</td>
                 </tr>
             </tbody>

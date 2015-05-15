@@ -50,134 +50,62 @@ class Mona(Monast):
 
     def _updateQueue(self, servername, **kw):
         super(Mona, self)._updateQueue(servername, **kw)
-        if QueueEvent.monast is None:
-            QueueEvent.monast = self
         with ipdb.launch_ipdb_on_exception():
-            QueueEvent.update()
+            Queue.create_instances(self)
+            Queue.update_all()
 
 
 
-from itertools import groupby
-
-class QueueEvent(dict):
-    '''
-    Info about the longest waiting client in this queue.
-    Defines server-sent event to browser.
-    '''
-
+class Queue(object):
+    
     SERVER = 'Main'
     
-    monast = None # TODO fix
-
-    clients = {} # 3 active clients
-
-
-    # @classmethod
-    # def get_new_clients(cls):
-    #     1
+    instances = {}
+    
+    longest_waiting = None
+    count = None
 
     @classmethod
-    def up_to_date(cls, queue_name):
-        server = cls.monast.servers.get(cls.SERVER)
-        for q_name, iden in cls.clients:
-            if queue_name == q_name:
-                return (q_name, iden) in server.status.queueClients
-
-
-    @classmethod
-    def update(cls):
-        monast = cls.monast
+    def create_instances(cls, monast):
         server = monast.servers.get(cls.SERVER)
+        for q_name, iden in server.status.queueClients:
+            if q_name not in cls.instances:
+                cls.instances[q_name] = Queue(monast, q_name)
 
-        queue_clients = server.status.queueClients
-        events = [] # X
-
-        for q_name, clients in groupby(queue_clients, key=lambda item: item[0]):
-            # alr processed
-            # TODO only timer up to date
-            if cls.up_to_date(q_name):
-                continue
-            clients = list(clients)
-            waiting_longest = max(clients,
-                                  key=lambda k: queue_clients[k].seconds)
-            client = queue_clients[waiting_longest]
-            cls.clients[waiting_longest] = client
-            event = cls(
-                queue_name = q_name,
-                time_waiting = client.seconds,
-                count = len(clients),
-            )
-            events.append(event)
-
-        # if events:
-        #
-        #     ipdb.set_trace()
-            monast.sendEvent(json.dumps(event))
-
-
-    #
-    # @classmethod
-    # def update(cls, monast):
-    #     server = monast.servers.get(cls.SERVER)
-    #     for tupl in cls.clients.items():
-    #         if tupl in server.status.queueClients:
-    #             continue
-    #         # import ipdb
-    #         # ipdb.set_trace()
-    #         cls.clients.remove(tupl)
-    #         queue_name, _ = tupl
-    #         queue_clients = filter(lambda c: c[0] == queue_name,
-    #                                server.status.queueClients)
-    #         longest_waiting = max(queue_clients,
-    #                               key=lambda k: queue_clients[k].seconds)
-    #         cls.clients[longest_waiting] = queue_clients[longest_waiting]
-    #
-    #         event = cls(
-    #             queue_name = queue_name,
-    #             time_waiting = queue_clients[longest_waiting].seconds,
-    #             count = len(queue_clients),
-    #         )
-    #         monast.send(json.dumps(event))
-    '''
-    def __init__(self, name):
-        1
-    
-    # current_channel
-    # keys(): del self._current
-
-    @property
-    def time(self):
-        1
-
-    def __init__(self, monast, queuename):
+    def __init__(self, monast, q_name):
+        self.q_name = q_name
+        self.monast = monast
         self.server = monast.servers.get(self.SERVER)
-        self.clients = self.server.status.queueClients
-        self.channels = self.server.status.channels
-        self.queue = self.server.status.queues.values()[0]
 
-    def jsonify(self, ):
-        dic = dict((field, getattr(self, field)) for field in self.FIELDS)
-        return json.dumps(dic)
-
-
-    def channels(self):
-        1
-
+    def get_clients(self):
+        for q_name, iden in self.server.status.queueClients:
+            if q_name == self.q_name:
+                yield (q_name, iden)
     
-    @field
-    def onhold_max(self, ):
-        return 2
-
-    @field
-    def num_calls(self):
-        return 1
+    def update(self):
+        needs_update = False
+        clients = list(self.get_clients())
+        if self.longest_waiting not in self.server.status.queueClients:
+            needs_update = True
+            self.longest_waiting = max(
+                clients,
+                key=lambda k: self.server.status.queueClients[k].seconds)
+        if len(clients) != self.count:
+            needs_update = True
+            self.count = len(clients)
+        if needs_update:
+            time = self.server.status.queueClients[self.longest_waiting].seconds
+            event = dict(
+                queue_name = self.q_name,
+                time_waiting = time,
+                count = self.count,
+            )
+            self.monast.sendEvent(json.dumps(event))
     
-    @field
-    def starttime(self):
-        1
-    '''
-
-
+    @classmethod
+    def update_all(cls):
+        for qu in cls.instances.values():
+            qu.update()
 
 
 if __name__ == '__main__':
