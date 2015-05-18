@@ -1,4 +1,4 @@
-var Timer= React.createClass({
+var Timer = React.createClass({
     getInitialState: function() {
       return {value: '-'}
     },
@@ -7,9 +7,12 @@ var Timer= React.createClass({
         if (this.state.value != '-') {
           this.setState({value: this.state.value + 1})
         }
-      }.bind(this), 1000);
+      }.bind(thiss), 1000);
     },
     componentWillReceiveProps: function(nextProps) {
+      if (1) {
+        //code
+      }
       this.setState({value: nextProps.time})
     },
     render: function(){
@@ -29,10 +32,10 @@ String.prototype.toHHMMSS = function () {
     var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
     var seconds = sec_num - (hours * 3600) - (minutes * 60);
 
-    if (hours   < 10) {hours   = "0"+hours;}
-    if (minutes < 10) {minutes = "0"+minutes;}
-    if (seconds < 10) {seconds = "0"+seconds;}
-    var time    = hours+':'+minutes+':'+seconds;
+    if (hours   < 10) {hours   = "0" + hours;}
+    if (minutes < 10) {minutes = "0" + minutes;}
+    if (seconds < 10) {seconds = "0" + seconds;}
+    var time    = hours + ':' + minutes + ':' + seconds;
     return time;
 }
 
@@ -45,7 +48,14 @@ var QueuesTable= React.createClass({
       info[data.queue_name] = data
       this.state.queues[data.queue_name] = data
       var queues = jQuery.extend(info, this.state.queues);
+      if (1) {
+        1;
+      }
       this.setState({queues: queues})
+      // only if length changes
+    },
+    onChListener: function() {
+
     },
     getInitialState: function() {
         return {queues: {}}
@@ -64,7 +74,7 @@ var QueuesTable= React.createClass({
               <table className="table">
                 <thead>
                     {q_names.map(function(q_name) {
-                    return <th>{q_name}</th>
+                      return <th>{q_name}</th>
                     }, this)}
                 </thead>
                 <tbody>

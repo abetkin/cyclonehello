@@ -50,24 +50,37 @@ class Mona(Monast):
 
     def _updateQueue(self, servername, **kw):
         super(Mona, self)._updateQueue(servername, **kw)
-        with ipdb.launch_ipdb_on_exception():
-            Queue.create_instances(self)
-            Queue.update_all()
+        Queue.create_instances(self)
+        Queue.update_all()
 
 
 import time
+
+class EventType:
+    time_waiting = 'longest waiting time'
+    count = 'number of people waiting in this queue'
+
 
 class Queue(object):
     
     SERVER = 'Main'
     
-    instances = {}
+    instances = None # {queue name: queue}
+
+    CHANGES = [
+        'time', 'count'
+    ]
 
     longest_waiting = None
     count = 0
 
+    queue_clients = None
+
+    # if not queue_clients:
+    # queue_clients = dict(self.server.status.queueClients)
+
     @classmethod
-    def create_instances(cls, monast):
+    def _create_instances(cls, monast):
         server = monast.servers.get(cls.SERVER)
         for q_name, iden in server.status.queueClients:
             if q_name not in cls.instances:
@@ -77,16 +90,63 @@ class Queue(object):
         self.q_name = q_name
         self.monast = monast
         self.server = monast.servers.get(self.SERVER)
+        self.clients = list(self._get_clients())
 
-    def get_clients(self):
+    def _get_clients(self):
         for q_name, iden in self.server.status.queueClients:
             if q_name == self.q_name:
                 yield (q_name, iden)
-    
+
     def get_seconds(self, client):
         client = self.server.status.queueClients[client]
         return int(time.time() - client.jointime)
+
+    # TODO logging
+
+    def _get_time_waiting(self, queue_name):
+        value = None
+        clients = self.server.status.queueClients
+
+        for (q_name, iden), client in clients.items():
+            if (queue_name == q_name) and client.seconds > value:
+                value = client.seconds
+                winner = client
+        client = max(clients,
+                     key=lambda k: self.server.status.queueClients[k].seconds)
+        return int(time.time() - clients[winner].jointime)
+
+
+    # def
+
+
+    def update(self):
+        event_type = None
+
+        connected = self.server.status.queueClients.keys() - self.old_clients.keys()
+        disconnected = self.old_clients.keys() - self.server.status.queueClients.keys()
+
+        if disconnected and disconnected == self.longest_waiting:
+            event_type = 'time' # update
+            queue_name, _ = disconnected
+            time_waiting = self._get_time_waiting(queue_name)
+            # self.count = 
+        
+        self.old_clients = set(self.server.status.queueClients)
     
+    def get_connected_client(self):
+        dif = set(self.server.status.queueClients.keys()) - self.old_clients
+        if dif:
+            client, = dif
+            return client
+
+
+    def get_disconnected_client(self):
+        dif = self.old_clients.difference(self.server.status.queueClients)
+        if dif:
+            client, = dif
+            return client
+
+    '''
     def update(self):
         needs_update = False
         clients = list(self.get_clients())
@@ -113,9 +173,12 @@ class Queue(object):
                 count = self.count,
             )
             self.monast.sendEvent(json.dumps(event))
+    '''
     
     @classmethod
     def update_all(cls):
+        if cls.instances is None:
+            cls._create_instances()
         for qu in cls.instances.values():
             qu.update()
 
