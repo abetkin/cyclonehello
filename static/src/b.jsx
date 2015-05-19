@@ -7,11 +7,11 @@ var Timer = React.createClass({
         if (this.state.value != '-') {
           this.setState({value: this.state.value + 1})
         }
-      }.bind(thiss), 1000);
+      }.bind(this), 1000);
     },
     componentWillReceiveProps: function(nextProps) {
-      if (1) {
-        //code
+      if (!nextProps.time) {
+        return;
       }
       this.setState({value: nextProps.time})
     },
@@ -54,11 +54,12 @@ var QueuesTable= React.createClass({
       this.setState({queues: queues})
       // only if length changes
     },
-    onChListener: function() {
-
-    },
     getInitialState: function() {
-        return {queues: {}}
+        // init. state
+        return {
+          queues: {},
+          event: undefined,
+        }
     },
     componentDidMount: function() {
       this.eventsource.onmessage = this.onEvent;
@@ -85,7 +86,16 @@ var QueuesTable= React.createClass({
                     </tr>
                     <tr>
                       {q_names.map(function(q_name) {
-                        return <td>Ожидание: <Timer time={queues[q_name].time_waiting}/></td>
+                        if (event){
+                          if (event.q_name == q_name && event.time_waiting) {
+                            time = event.time_waiting;
+                          } else {
+                            time = undefined;
+                          }
+                        } else {
+                          time = queues[q_name].time_waiting
+                        }
+                        return <td>Ожидание: <Timer time={time}/></td>
                       }, this)}
                     </tr>
                 </tbody>
