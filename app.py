@@ -17,15 +17,18 @@ class MainHandler(cyclone.web.RequestHandler):
     1
 
     def get(self):
-        Queue._create_instances(Mona.instance)
+        with ipdb.launch_ipdb_on_exception():
+            Queue.ensure_instances()
 
-        queues = [{
-            'q_name': q_name,
-            'waiting_time': queue._get_time_waiting(),
-            'count': len(queue.clients)
-            } for q_name, queue in Queue.instances.items()
-        ]
-        self.render('index.html', queues=queues)
+            def queues():
+                for queue in Queue.instances.values():
+                    queue.longest_waiting, time_waiting = queue.get_time_waiting()
+                    yield {
+                        'q_name': queue.name,
+                        'time_waiting': time_waiting,
+                        'count': queue.count,
+                    }
+            self.render('index.html', queues=list(queues()))
 
 
 class Application(cyclone.web.Application):
@@ -57,8 +60,8 @@ class Mona(Monast):
     instance = None
 
     def __init__(self, *args, **kw):
+        self.__class__.instance = self
         super(Mona, self).__init__(*args, **kw)
-        self.instance = self
 
     http_clients = []
 
@@ -68,8 +71,8 @@ class Mona(Monast):
 
     def _updateQueue(self, servername, **kw):
         super(Mona, self)._updateQueue(servername, **kw)
-        Queue.create_instances(self)
-        Queue.update_all()
+        with ipdb.launch_ipdb_on_exception():
+            Queue.update() # instance
 
 
 import time
@@ -93,25 +96,23 @@ class Queue(object):
     longest_waiting = None
     count = 0
 
-    queue_clients = None
-
-    # if not queue_clients:
-    # queue_clients = dict(self.server.status.queueClients)
-
     @classmethod
-    def _create_instances(cls, monast):
+    def ensure_instances(cls):
+        if cls.instances is not None:
+            return
+        monast = Mona.instance
         server = monast.servers.get(cls.SERVER)
         all_clients = server.status.queueClients
+        cls.old_clients = set(all_clients)
+        cls.instances = {}
         for q_name, clients in groupby(all_clients, key=lambda k: k[0]):
             cls.instances[q_name] = Queue(q_name, set(clients))
-
-            
-    # FIXME count
 
     def __init__(self, q_name, clients):
         self.name = self.q_name = q_name
         self.count = len(clients)
         self.server = Mona.instance.servers.get(self.SERVER)
+        
 
     # TODO logging
 
@@ -121,16 +122,10 @@ class Queue(object):
         for (q_name, iden), client in clients.items():
             if (self.name == q_name) and client.seconds > value:
                 value = client.seconds
-                winner = client
+                winner = (q_name, iden)
         if value:
             value = int(time.time() - clients[winner].jointime)
             return winner, value
-
-    # def check_waiting_time(self):
-    #     1
-    #
-    # def check_count(self):
-    #     1
 
     def handle_event(self, connected, disconnected):
         time_waiting = None
@@ -148,13 +143,23 @@ class Queue(object):
 
     @classmethod
     def update(cls):
+        cls.ensure_instances()
         connected = cls.get_connected_client()
         disconnected = cls.get_disconnected_client()
         assert abs(bool(connected)) + abs(bool(disconnected)) < 2, \
                 "Should be just 1 event at a time"
+        if not (connected or disconnected):
+            return
+        # ipdb.set_trace()
         queue_name, _ = connected or disconnected
-        queue = Queue.instances[queue_name]
+        queue = Queue.instances.get(queue_name)
+        if queue is None:
+            assert connected
+            queue = Queue.instances.setdefault(queue_name,
+                                               Queue(queue_name, [connected]))
         queue.handle_event(connected, disconnected)
+        server = Mona.instance.servers.get(cls.SERVER)
+        cls.old_clients = set(server.status.queueClients)
 
     '''
     @classmethod
@@ -189,15 +194,17 @@ class Queue(object):
     '''
     
     @classmethod
-    def get_connected_client(self):
-        dif = set(self.server.status.queueClients.keys()) - self.old_clients
+    def get_connected_client(cls):
+        server = Mona.instance.servers.get(cls.SERVER)
+        dif = set(server.status.queueClients.keys()) - cls.old_clients
         if dif:
             client, = dif
             return client
 
     @classmethod
-    def get_disconnected_client(self):
-        dif = self.old_clients.difference(self.server.status.queueClients)
+    def get_disconnected_client(cls):
+        server = Mona.instance.servers.get(cls.SERVER)
+        dif = cls.old_clients.difference(server.status.queueClients)
         if dif:
             client, = dif
             return client
@@ -206,5 +213,6 @@ class Queue(object):
 
 
 if __name__ == '__main__':
+    # ipdb.set_trace()
     reactor.listenTCP(8899, Application(), interface="0.0.0.0")
     RunMonast(Mona)
