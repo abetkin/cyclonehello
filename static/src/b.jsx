@@ -10,6 +10,7 @@ var Timer = React.createClass({
       }.bind(this), 1000);
     },
     componentWillReceiveProps: function(nextProps) {
+      console.log('nextTime> ', nextProps.time)
       if (!nextProps.time) {
         return;
       }
@@ -45,19 +46,17 @@ var QueuesTable= React.createClass({
     onEvent: function(ev) {
       data = JSON.parse(ev.data)
       info = {}
-      info[data.queue_name] = data
-      this.state.queues[data.queue_name] = data
+      info[data.q_name] = data
+      this.state.queues[data.q_name] = data
       var queues = jQuery.extend(info, this.state.queues);
-      if (1) {
-        1;
-      }
-      this.setState({queues: queues})
+
+      this.setState({queues: queues, event: data})
       // only if length changes
     },
     getInitialState: function() {
         // init. state
         return {
-          queues: {},
+          queues: queues_json,
           event: undefined,
         }
     },
@@ -67,7 +66,9 @@ var QueuesTable= React.createClass({
     render: function(){
         var q_names = Object.keys(this.state.queues);
         q_names.sort();
+        console.log(q_names)
         var queues = this.state.queues;
+        var event = this.state.event;
 
         return (
           <div className="row">
@@ -88,14 +89,15 @@ var QueuesTable= React.createClass({
                       {q_names.map(function(q_name) {
                         if (event){
                           if (event.q_name == q_name && event.time_waiting) {
-                            time = event.time_waiting;
+                            var time_waiting = event.time_waiting;
                           } else {
-                            time = undefined;
+                            var time_waiting = undefined;
                           }
                         } else {
-                          time = queues[q_name].time_waiting
+                          var time_waiting = queues[q_name].time_waiting
                         }
-                        return <td>Ожидание: <Timer time={time}/></td>
+                        console.log('time> ', time_waiting)
+                        return <td>Ожидание: <Timer time={time_waiting}/></td>
                       }, this)}
                     </tr>
                 </tbody>

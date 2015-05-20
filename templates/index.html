@@ -10,6 +10,11 @@
   </head>
   <body>
     <div id="main"></div>
+    {% autoescape None %}
+    <script type="text/javascript">
+        console.log({{ queues_json }});
+        var queues_json = {{ queues_json }};
+    </script>
     <script type="text/jsx" src="{{ static_url("src/b.jsx") }}"/>
   </body>
 </html>

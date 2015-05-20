@@ -23,12 +23,13 @@ class MainHandler(cyclone.web.RequestHandler):
             def queues():
                 for queue in Queue.instances.values():
                     queue.longest_waiting, time_waiting = queue.get_time_waiting()
-                    yield {
+                    yield queue.name, {
                         'q_name': queue.name,
                         'time_waiting': time_waiting,
                         'count': queue.count,
                     }
-            self.render('index.html', queues=list(queues()))
+            queues_json = json.dumps(dict(queues()))
+            self.render('index.html', queues_json=queues_json)
 
 
 class Application(cyclone.web.Application):
@@ -123,9 +124,10 @@ class Queue(object):
             if (self.name == q_name) and client.seconds > value:
                 value = client.seconds
                 winner = (q_name, iden)
-        if value:
+        if value is not None:
             value = int(time.time() - clients[winner].jointime)
             return winner, value
+        return (None, None)
 
     def handle_event(self, connected, disconnected):
         time_waiting = None
