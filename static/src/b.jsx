@@ -4,20 +4,20 @@ var Timer = React.createClass({
     getInitialState: function() {
       return {value: null}
     },
-    componentDidMount: function() {
-      this.setState({value: this.props.time_waiting});
-      window.setInterval(function(){
+    periodicTask: function(){
         if (this.state.value != undefined) {
           this.setState({value: this.state.value + 1});
         }
-      }.bind(this), 1000);
+    },
+    componentDidMount: function() {
+      this.setState({value: this.props.time_waiting});
+      this.timer = window.setInterval(this.periodicTask, 1000);
     },
     componentWillReceiveProps: function(nextProps) {
       data = nextProps.data;
       console.log('dat>', data.count, data.time_waiting);
-      if (data.count <= 0){
-        console.log('ZERO!')
-        this.setState({value: undefined})
+      if (data.count == 0){
+        this.setState({value: undefined});
       } else if (data.time_waiting != undefined) {
         this.setState({value: parseInt(data.time_waiting)});
       }

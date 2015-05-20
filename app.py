@@ -17,19 +17,19 @@ class MainHandler(cyclone.web.RequestHandler):
     1
 
     def get(self):
-        with ipdb.launch_ipdb_on_exception():
-            Queue.ensure_instances()
+        # with ipdb.launch_ipdb_on_exception():
+        Queue.ensure_instances()
 
-            def queues():
-                for queue in Queue.instances.values():
-                    # queue.__dict__.update(queue.get_state())
-                    yield queue.name, {
-                        'q_name': queue.name,
-                        'time_waiting': queue.time_waiting,
-                        'count': queue.count,
-                    }
-            queues_json = json.dumps(dict(queues()))
-            self.render('index.html', queues_json=queues_json)
+        def queues():
+            for queue in Queue.instances.values():
+                # queue.__dict__.update(queue.get_state())
+                yield queue.name, {
+                    'q_name': queue.name,
+                    'time_waiting': queue.time_waiting,
+                    'count': queue.count,
+                }
+        queues_json = json.dumps(dict(queues()))
+        self.render('index.html', queues_json=queues_json)
 
 
 class Application(cyclone.web.Application):
@@ -72,8 +72,8 @@ class Mona(Monast):
 
     def _updateQueue(self, servername, **kw):
         super(Mona, self)._updateQueue(servername, **kw)
-        with ipdb.launch_ipdb_on_exception():
-            Queue.update() # instance
+        # with ipdb.launch_ipdb_on_exception():
+        Queue.update() # instance
 
 
 import time
@@ -137,15 +137,17 @@ class Queue(object):
         if self.longest_waiting is None or \
                 (disconnected and disconnected == self.longest_waiting):
            self.__dict__.update(self.get_state())
-        delta = int(bool(connected)) - int(bool(disconnected))
-        self.count += delta
-        if self.time_waiting or delta:
-            event = {
-                'time_waiting': self.time_waiting,
-                'count': self.count,
-                'q_name': self.name,
-            }
-            Mona.instance.sendEvent(json.dumps(event))
+        # delta = int(bool(connected)) - int(bool(disconnected))
+        # get count
+        # remove ipdb
+        self.count = len(list(_ for name, _ in self.server.status.queueClients
+                              if name == self.name))
+        event = {
+            'time_waiting': self.time_waiting,
+            'count': self.count,
+            'q_name': self.name,
+        }
+        Mona.instance.sendEvent(json.dumps(event))
 
     @classmethod
     def update(cls):
