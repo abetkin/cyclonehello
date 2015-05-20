@@ -101,13 +101,11 @@ class Queue(object):
     def ensure_instances(cls):
         if cls.instances is not None:
             return
-        monast = Mona.instance
-        server = monast.servers.get(cls.SERVER)
-        all_clients = server.status.queueClients
-        cls.old_clients = set(all_clients)
-        cls.instances = {q_name: cls(q_name) for q_name, _ in all_clients}
+        server = Mona.instance.servers.get(cls.SERVER)
+        cls.instances = {q_name: cls(q_name) for q_name in server.status.queues}
+        cls.old_clients = set(server.status.queueClients)
 
-    def __init__(self, q_name, clients):
+    def __init__(self, q_name):
         self.name = self.q_name = q_name
         self.server = Mona.instance.servers.get(self.SERVER)
         self.__dict__.update(self.get_state())
