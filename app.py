@@ -128,38 +128,25 @@ class Queue(object):
                     longest_waiting = (q_name, iden)
         if value is not None:
             value = int(time.time() - value)
+        print 'value>', value
         return {
             'time_waiting': value,
             'longest_waiting': longest_waiting,
             'count': count,
         }
 
-    # def get_time_waiting(self):
-    #     value = None
-    #     clients = self.server.status.queueClients
-    #     for (q_name, iden), client in clients.items():
-    #         if (self.name == q_name) and client.seconds > value:
-    #             value = client.seconds
-    #             winner = (q_name, iden)
-    #     print 'value>', value
-    #     if value is not None:
-    #         value = int(time.time() - clients[winner].jointime)
-    #         return winner, value
-    #     return (None, None)
-
     def handle_event(self, connected, disconnected):
-        time_waiting = None
-        if disconnected and disconnected == self.longest_waiting:
+        if self.longest_waiting is None or \
+                (disconnected and disconnected == self.longest_waiting):
            self.__dict__.update(self.get_state())
         delta = int(bool(connected)) - int(bool(disconnected))
         self.count += delta
-        if time_waiting or delta:
+        if self.time_waiting or delta:
             event = {
                 'time_waiting': self.time_waiting,
                 'count': self.count,
                 'q_name': self.name,
             }
-            print 'ev>', event
             Mona.instance.sendEvent(json.dumps(event))
 
     @classmethod
@@ -182,38 +169,7 @@ class Queue(object):
         server = Mona.instance.servers.get(cls.SERVER)
         cls.old_clients = set(server.status.queueClients)
 
-    '''
-    @classmethod
-    def update(cls):
-        event_type = None
-        connected = cls.get_connected_client()
-        disconnected = cls.get_disconnected_client()
-        assert abs(bool(connected)) + abs(bool(disconnected)) < 2, \
-                "Should be just 1 event at a time"
 
-        time_waiting = None
-        if disconnected and disconnected == cls.longest_waiting:
-            event_type = EventType.time_waiting
-            queue_name, _ = disconnected
-            queue = Queue.instances[queue_name]
-            time_waiting = queue._get_time_waiting()
-
-        delta = int(bool(connected)) - int(bool(disconnected))
-
-        if delta:
-            queue_name, _ = connected or disconnected
-            event_type = event_type or EventType.count
-        cls.count += delta # FIX
-        event = dict(
-            queue_name = queue_name,
-            time_waiting = time_waiting,
-            count = cls.count,
-        )
-        Mona.instance.sendEvent(json.dumps(event))
-        server = Mona.instance.servers.get(cls.SERVER)
-        cls.old_clients = set(server.status.queueClients)
-    '''
-    
     @classmethod
     def get_connected_client(cls):
         server = Mona.instance.servers.get(cls.SERVER)

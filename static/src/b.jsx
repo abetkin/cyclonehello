@@ -14,8 +14,7 @@ var Timer = React.createClass({
       }.bind(this), 1000);
     },
     componentWillReceiveProps: function(nextProps) {
-      console.log('nextTime> ', nextProps.time)
-      if (!nextProps.time) {
+      if (nextProps.time === undefined) {
         return;
       }
       this.setState({value: nextProps.time})
@@ -80,9 +79,11 @@ var QueuesTable= React.createClass({
             <div className="col-md-6">
               <table className="table">
                 <thead>
+                  <tr>
                     {q_names.map(function(q_name) {
                       return <th>{q_name}</th>
                     }, this)}
+                  </tr>
                 </thead>
                 <tbody>
                     <tr>
@@ -92,9 +93,10 @@ var QueuesTable= React.createClass({
                     </tr>
                     <tr>
                       {q_names.map(function(q_name) {
-                        console.log('RR', event.q_name, event.time_waiting)
-                        if (event){
-                          if (event.q_name == q_name && event.time_waiting) {
+                        if (event && event.q_name == q_name){
+                          if (event.count <= 0) {
+                            var time_waiting = '-'
+                          } else if (event.time_waiting !== null) {
                             var time_waiting = event.time_waiting;
                           } else {
                             var time_waiting = undefined;
