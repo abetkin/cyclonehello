@@ -1,31 +1,37 @@
+
+
 var Timer = React.createClass({
     getInitialState: function() {
-      return {}
+      return {value: null}
     },
     componentDidMount: function() {
-      if (this.state.value === undefined && this.props.time_waiting) {
-          this.setState({value: this.props.time_waiting});
-      }
+      this.setState({value: this.props.time_waiting});
       window.setInterval(function(){
-        if (this.state.value == '-') {
-          return;
+        if (this.state.value != undefined) {
+          this.setState({value: this.state.value + 1});
         }
-        this.setState({value: this.state.value + 1});
       }.bind(this), 1000);
     },
     componentWillReceiveProps: function(nextProps) {
-      if (nextProps.time === undefined) {
-        return;
+      data = nextProps.data;
+      console.log('dat>', data.count, data.time_waiting);
+      if (data.count <= 0){
+        console.log('ZERO!')
+        this.setState({value: undefined})
+      } else if (data.time_waiting != undefined) {
+        this.setState({value: parseInt(data.time_waiting)});
       }
-      this.setState({value: nextProps.time})
     },
     render: function(){
         var value = this.state.value;
-        if (value != '-'){
-          value = (value + '').toHHMMSS()
+        console.log('val>', value)
+        if (value != undefined) {
+          repr = (value + '').toHHMMSS();
+        } else {
+          repr = '-';
         }
         return (
-          <div>{value}</div>
+          <div>{repr}</div>
         )
     }
 });
@@ -73,7 +79,7 @@ var QueuesTable= React.createClass({
         console.log(q_names)
         var queues = this.state.queues;
         var event = this.state.event;
-
+        console.log('ev>', event.q_name, event.count, event.time_waiting)
         return (
           <div className="row">
             <div className="col-md-6">
@@ -94,18 +100,11 @@ var QueuesTable= React.createClass({
                     <tr>
                       {q_names.map(function(q_name) {
                         if (event && event.q_name == q_name){
-                          if (event.count <= 0) {
-                            var time_waiting = '-'
-                          } else if (event.time_waiting !== null) {
-                            var time_waiting = event.time_waiting;
-                          } else {
-                            var time_waiting = undefined;
-                          }
+                          var timer_data = event;
                         } else {
-                          var time_waiting = queues[q_name].time_waiting
+                          var timer_data = queues[q_name]
                         }
-                        console.log('time> ', time_waiting)
-                        return <td>Ожидание: <Timer time={time_waiting}/></td>
+                        return <td>Ожидание: <Timer data={timer_data}/></td>
                       }, this)}
                     </tr>
                 </tbody>
