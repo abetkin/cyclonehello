@@ -1,12 +1,16 @@
 var Timer = React.createClass({
     getInitialState: function() {
-      return {value: '-'}
+      return {}
     },
     componentDidMount: function() {
+      if (this.state.value === undefined && this.props.time_waiting) {
+          this.setState({value: this.props.time_waiting});
+      }
       window.setInterval(function(){
-        if (this.state.value != '-') {
-          this.setState({value: this.state.value + 1})
+        if (this.state.value == '-') {
+          return;
         }
+        this.setState({value: this.state.value + 1});
       }.bind(this), 1000);
     },
     componentWillReceiveProps: function(nextProps) {
@@ -45,6 +49,7 @@ var QueuesTable= React.createClass({
 
     onEvent: function(ev) {
       data = JSON.parse(ev.data)
+      console.log('ev', data.q_name, data.time_waiting, data.count)
       info = {}
       info[data.q_name] = data
       this.state.queues[data.q_name] = data
@@ -57,7 +62,7 @@ var QueuesTable= React.createClass({
         // init. state
         return {
           queues: queues_json,
-          event: undefined,
+          event: {},
         }
     },
     componentDidMount: function() {
@@ -87,6 +92,7 @@ var QueuesTable= React.createClass({
                     </tr>
                     <tr>
                       {q_names.map(function(q_name) {
+                        console.log('RR', event.q_name, event.time_waiting)
                         if (event){
                           if (event.q_name == q_name && event.time_waiting) {
                             var time_waiting = event.time_waiting;

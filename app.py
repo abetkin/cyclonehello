@@ -22,10 +22,10 @@ class MainHandler(cyclone.web.RequestHandler):
 
             def queues():
                 for queue in Queue.instances.values():
-                    queue.longest_waiting, time_waiting = queue.get_time_waiting()
+                    # queue.__dict__.update(queue.get_state())
                     yield queue.name, {
                         'q_name': queue.name,
-                        'time_waiting': time_waiting,
+                        'time_waiting': queue.time_waiting,
                         'count': queue.count,
                     }
             queues_json = json.dumps(dict(queues()))
@@ -105,42 +105,61 @@ class Queue(object):
         server = monast.servers.get(cls.SERVER)
         all_clients = server.status.queueClients
         cls.old_clients = set(all_clients)
-        cls.instances = {}
-        for q_name, clients in groupby(all_clients, key=lambda k: k[0]):
-            cls.instances[q_name] = Queue(q_name, set(clients))
+        cls.instances = {q_name: cls(q_name) for q_name, _ in all_clients}
 
     def __init__(self, q_name, clients):
         self.name = self.q_name = q_name
-        self.count = len(clients)
         self.server = Mona.instance.servers.get(self.SERVER)
+        self.__dict__.update(self.get_state())
         
 
     # TODO logging
 
-    def get_time_waiting(self):
+    def get_state(self):
+        count = 0
         value = None
+        longest_waiting = None
         clients = self.server.status.queueClients
         for (q_name, iden), client in clients.items():
-            if (self.name == q_name) and client.seconds > value:
-                value = client.seconds
-                winner = (q_name, iden)
+            if (self.name == q_name):
+                count += 1
+                if value is None or client.jointime < value:
+                    value = client.jointime
+                    longest_waiting = (q_name, iden)
         if value is not None:
-            value = int(time.time() - clients[winner].jointime)
-            return winner, value
-        return (None, None)
+            value = int(time.time() - value)
+        return {
+            'time_waiting': value,
+            'longest_waiting': longest_waiting,
+            'count': count,
+        }
+
+    # def get_time_waiting(self):
+    #     value = None
+    #     clients = self.server.status.queueClients
+    #     for (q_name, iden), client in clients.items():
+    #         if (self.name == q_name) and client.seconds > value:
+    #             value = client.seconds
+    #             winner = (q_name, iden)
+    #     print 'value>', value
+    #     if value is not None:
+    #         value = int(time.time() - clients[winner].jointime)
+    #         return winner, value
+    #     return (None, None)
 
     def handle_event(self, connected, disconnected):
         time_waiting = None
         if disconnected and disconnected == self.longest_waiting:
-           self.longest_waiting, time_waiting = self.get_time_waiting()
+           self.__dict__.update(self.get_state())
         delta = int(bool(connected)) - int(bool(disconnected))
         self.count += delta
         if time_waiting or delta:
             event = {
-                'time_waiting': time_waiting,
+                'time_waiting': self.time_waiting,
                 'count': self.count,
                 'q_name': self.name,
             }
+            print 'ev>', event
             Mona.instance.sendEvent(json.dumps(event))
 
     @classmethod
