@@ -23,6 +23,7 @@ class MainHandler(cyclone.web.RequestHandler):
                 yield queue.name, {
                     'q_name': queue.name,
                     'time_waiting': queue.time_waiting,
+                    'time_talking': queue.time_talking,
                     'count': queue.count,
                 }
         queues_json = json.dumps(dict(queues()))
@@ -86,6 +87,7 @@ class Queue(object):
     instances = None # {queue name: queue}
 
     longest_waiting = None
+    client_talking = None
     count = 0
 
     @classmethod
@@ -102,8 +104,12 @@ class Queue(object):
         self.server = Mona.instance.servers.get(self.SERVER)
         self.do_update(send_event=False)
 
+    def get_client_talking(self):
+        for client_id, call in self.server.status.queueCalls.items():
+            if self.name == call.client['queue']:
+                return client_id, int(time.time() - call.client['jointime'])
+
     def do_update(self, send_event=True):
-        # ipd
         count = 0
         time_joined = None
         longest_waiting = None
@@ -113,9 +119,16 @@ class Queue(object):
                 count += 1
                 if time_joined is None or client.jointime < time_joined:
                     time_joined = client.jointime
-                    longest_waiting = (q_name, iden)
-        send_event = send_event and (count != self.count)
+                    longest_waiting = iden
+        client_talking, self.time_talking = self.get_client_talking()
+        smth_changed = count != self.count
         self.count = count
+        if client_talking == self.client_talking:
+            self.time_talking = None
+        else:
+            self.client_talking = client_talking
+            smth_changed = True
+        send_event = send_event and smth_changed
         if longest_waiting == self.longest_waiting or time_joined is None:
             self.time_waiting = None
         else:
@@ -123,6 +136,7 @@ class Queue(object):
             self.time_waiting = int(time.time() - time_joined)
         if send_event:
             event = {
+                'time_talking': self.time_talking,
                 'time_waiting': self.time_waiting,
                 'q_name': self.name,
                 'count': self.count,

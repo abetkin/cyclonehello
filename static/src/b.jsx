@@ -24,7 +24,6 @@ var Timer = React.createClass({
     },
     render: function(){
         var value = this.state.value;
-        console.log('val>', value)
         if (value != undefined) {
           repr = (value + '').toHHMMSS();
         } else {
@@ -36,8 +35,11 @@ var Timer = React.createClass({
     }
 });
 
-String.prototype.toHHMMSS = function () {
-    var sec_num = parseInt(this, 10); // don't forget the second param
+var repr_time = function(data){
+    if (data != undefined) {
+      return '-';
+    }
+    var sec_num = parseInt(data, 10); // don't forget the second param
     var hours   = Math.floor(sec_num / 3600);
     var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
     var seconds = sec_num - (hours * 3600) - (minutes * 60);
@@ -49,12 +51,94 @@ String.prototype.toHHMMSS = function () {
     return time;
 }
 
+var Queue= React.createClass({
+    getInitialState: function() {
+      return {value: null}
+    },
+    periodicTask: function(){
+        if (this.state.value != undefined) {
+          this.setState({value: this.state.value + 1});
+        }
+    },
+    componentDidMount: function() {
+      this.setState({value: this.props.time_waiting});
+      this.timer = window.setInterval(this.periodicTask, 1000);
+    },
+    componentWillReceiveProps: function(nextProps) {
+      data = nextProps.data;
+      console.log('dat>', data.count, data.time_waiting);
+      if (data.count == 0){
+        this.setState({value: undefined});
+      } else if (data.time_waiting != undefined) {
+        this.setState({value: parseInt(data.time_waiting)});
+      }
+    },
+    render: function(){
+
+        return (
+          <div className="col-md-1">
+    <table className="table table-condensed">
+      <thead>
+        <tr>
+          <th>
+            <span className="pull-left">{this.state.name}</span>
+            <span className="pull-right">
+              &#9742; {repr_time(this.state.time_talking)}
+            </span>
+            <div className="clearfix"></div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr>
+              <td className="success"></td>
+          </tr>
+          <tr>
+              <td className="success"></td>
+          </tr>
+          <tr>
+              <td className="success"></td>
+          </tr>
+          <tr>
+              <td className="success"></td>
+          </tr>
+          <tr>
+              <td className="success"></td>
+          </tr>
+          <tr>
+              <td className="success"></td>
+          </tr>
+          <tr>
+              <td className="success"></td>
+          </tr>
+          <tr>
+              <td className="success"></td>
+          </tr>
+          <tr>
+              <td className="success"></td>
+          </tr>
+          <tr>
+              <td className="success"></td>
+          </tr>
+
+          <tr>
+              <td className="success"><center><h4>&#8987; 11:34</h4></center></td>
+          </tr>
+          <tr>
+              <td><center><h4>11</h4></center></td>
+          </tr>
+      </tbody>
+    </table>
+  </div>
+        )
+    }
+});
+
 var QueuesTable= React.createClass({
     eventsource: new EventSource('/eventsource'),
 
     onEvent: function(ev) {
       data = JSON.parse(ev.data)
-      console.log('ev', data.q_name, data.time_waiting, data.count)
       info = {}
       info[data.q_name] = data
       this.state.queues[data.q_name] = data
@@ -76,40 +160,18 @@ var QueuesTable= React.createClass({
     render: function(){
         var q_names = Object.keys(this.state.queues);
         q_names.sort();
-        console.log(q_names)
         var queues = this.state.queues;
         var event = this.state.event;
-        console.log('ev>', event.q_name, event.count, event.time_waiting)
         return (
           <div className="row">
-            <div className="col-md-6">
-              <table className="table">
-                <thead>
-                  <tr>
-                    {q_names.map(function(q_name) {
-                      return <th>{q_name}</th>
-                    }, this)}
-                  </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                      {q_names.map(function(q_name) {
-                        return <td>Звонков: {queues[q_name].count}</td>
-                      }, this)}
-                    </tr>
-                    <tr>
-                      {q_names.map(function(q_name) {
-                        if (event && event.q_name == q_name){
-                          var timer_data = event;
-                        } else {
-                          var timer_data = queues[q_name]
-                        }
-                        return <td>Ожидание: <Timer data={timer_data}/></td>
-                      }, this)}
-                    </tr>
-                </tbody>
-              </table>
-            </div>
+              {q_names.map(function(q_name) {
+                  if (event && event.q_name == q_name){
+                    var queue_data = event;
+                  } else {
+                    var queue_data = queues[q_name]
+                  }
+                  return <Queue data={queue_data}/>
+              })}
           </div>
       )
     }
