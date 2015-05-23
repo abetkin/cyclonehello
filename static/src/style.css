@@ -4,3 +4,6 @@ tr {
    height: 30px;
 }
 
+body {
+   min-width: 2000px !important;
+}

@@ -15,19 +15,19 @@ SERVER = 'Main'
 class MainHandler(cyclone.web.RequestHandler):
 
     def get(self):
-        # with ipdb.launch_ipdb_on_exception():
-        Queue.ensure_instances()
-
-        def queues():
-            for queue in Queue.instances.values():
-                yield queue.name, {
-                    'q_name': queue.name,
-                    'time_waiting': queue.time_waiting,
-                    'time_talking': queue.time_talking,
-                    'count': queue.count,
-                }
-        queues_json = json.dumps(dict(queues()))
-        self.render('index.html', queues_json=queues_json)
+        with ipdb.launch_ipdb_on_exception():
+            Queue.ensure_instances()
+    
+            def queues():
+                for queue in Queue.instances.values():
+                    yield queue.name, {
+                        'name': queue.name,
+                        'time_waiting': queue.time_waiting,
+                        'time_talking': queue.time_talking,
+                        'count': queue.count,
+                    }
+            queues_json = json.dumps(dict(queues()))
+            self.render('index.html', queues_json=queues_json)
 
 
 class Application(cyclone.web.Application):
@@ -88,6 +88,8 @@ class Queue(object):
 
     longest_waiting = None
     client_talking = None
+    time_talking = None
+    time_waiting = None
     count = 0
 
     @classmethod
@@ -107,7 +109,13 @@ class Queue(object):
     def get_client_talking(self):
         for client_id, call in self.server.status.queueCalls.items():
             if self.name == call.client['queue']:
-                return client_id, int(time.time() - call.client['jointime'])
+                return client_id, int(time.time() - call.starttime)
+        return (None, None)
+
+
+    def get_state(self):
+        clients = self.server.status.queueClients
+
 
     def do_update(self, send_event=True):
         count = 0
@@ -120,24 +128,31 @@ class Queue(object):
                 if time_joined is None or client.jointime < time_joined:
                     time_joined = client.jointime
                     longest_waiting = iden
-        client_talking, self.time_talking = self.get_client_talking()
+        self.client_talking, self.time_talking = self.get_client_talking()
         smth_changed = count != self.count
         self.count = count
         if client_talking == self.client_talking:
-            self.time_talking = None
+            time_talking = None
         else:
+            
+            time_talking = self.time_talking
             self.client_talking = client_talking
             smth_changed = True
         send_event = send_event and smth_changed
+        if time_joined is not None:
+            self.time_waiting = int(time.time() - time_joined)
         if longest_waiting == self.longest_waiting or time_joined is None:
-            self.time_waiting = None
+            time_waiting = None
         else:
             self.longest_waiting = longest_waiting
-            self.time_waiting = int(time.time() - time_joined)
+            time_waiting = self.time_waiting
+        
+        # TODO .__dict__.update(...)
+        
         if send_event:
             event = {
-                'time_talking': self.time_talking,
-                'time_waiting': self.time_waiting,
+                'time_talking': time_talking,
+                'time_waiting': time_waiting,
                 'q_name': self.name,
                 'count': self.count,
             }

@@ -1,137 +1,120 @@
-
-
-var Timer = React.createClass({
-    getInitialState: function() {
-      return {value: null}
-    },
-    periodicTask: function(){
-        if (this.state.value != undefined) {
-          this.setState({value: this.state.value + 1});
-        }
-    },
-    componentDidMount: function() {
-      this.setState({value: this.props.time_waiting});
-      this.timer = window.setInterval(this.periodicTask, 1000);
-    },
-    componentWillReceiveProps: function(nextProps) {
-      data = nextProps.data;
-      console.log('dat>', data.count, data.time_waiting);
-      if (data.count == 0){
-        this.setState({value: undefined});
-      } else if (data.time_waiting != undefined) {
-        this.setState({value: parseInt(data.time_waiting)});
-      }
-    },
-    render: function(){
-        var value = this.state.value;
-        if (value != undefined) {
-          repr = (value + '').toHHMMSS();
-        } else {
-          repr = '-';
-        }
-        return (
-          <div>{repr}</div>
-        )
-    }
-});
-
 var repr_time = function(data){
-    if (data != undefined) {
-      return '-';
+    if (data == undefined) {
+      return undefined;
     }
     var sec_num = parseInt(data, 10); // don't forget the second param
     var hours   = Math.floor(sec_num / 3600);
     var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
     var seconds = sec_num - (hours * 3600) - (minutes * 60);
 
-    if (hours   < 10) {hours   = "0" + hours;}
-    if (minutes < 10) {minutes = "0" + minutes;}
+    if (hours == 0) {
+      hours = "";
+    } else if (hours   < 10) {
+      hours  = "0" + hours + ":";
+    }
+    if (minutes < 10) {minutes = "0" + minutes + ":";}
     if (seconds < 10) {seconds = "0" + seconds;}
-    var time    = hours + ':' + minutes + ':' + seconds;
+    var time = hours + minutes + seconds;
     return time;
 }
 
-var Queue= React.createClass({
+var Queue = React.createClass({
+  
+    WAIT_LIMIT: 10 * 1,
+  
     getInitialState: function() {
-      return {value: null}
+      return {};
     },
     periodicTask: function(){
-        if (this.state.value != undefined) {
-          this.setState({value: this.state.value + 1});
+      state = {
+        count: this.state.count,
+        danger: this.state.danger
+      };
+      if (this.state.count && this.state.time_waiting){
+        state.time_waiting = this.state.time_waiting + 1;
+        if (state.time_waiting > this.WAIT_LIMIT) {
+          state.danger = true;
+        } else {
+          state.danger = false;
         }
+      }
+      if (this.state.time_talking != undefined) {
+        state.time_talking = this.state.time_talking + 1;
+      }
+      console.log('task state: ', state)
+      this.setState(state);
     },
     componentDidMount: function() {
-      this.setState({value: this.props.time_waiting});
+      console.log('props data: ', this.props.data)
+      this.setState(this.props.data);
       this.timer = window.setInterval(this.periodicTask, 1000);
     },
     componentWillReceiveProps: function(nextProps) {
-      data = nextProps.data;
-      console.log('dat>', data.count, data.time_waiting);
-      if (data.count == 0){
-        this.setState({value: undefined});
-      } else if (data.time_waiting != undefined) {
-        this.setState({value: parseInt(data.time_waiting)});
-      }
+      var state = jQuery.extend({}, this.state);
+      var data = jQuery.extend(state, nextProps.data);
+      console.log('state data: ', data)
+      this.setState(data);
     },
     render: function(){
-
+      var time_talking = repr_time(this.state.time_talking);
+      if (time_talking) {
+        time_talking ='\u260E ' + time_talking;
+      } else {
+        time_talking = '';
+      }
+      var range = [], i = 0;
+      if (this.state.count > 1) {
+        while (++i <= this.state.count - 1) range.push(i);
+      }
+      console.log('danger: ', this.state.danger)
+      var showWaitingTime = function(){
+        if (this.state.count == 0){
+          return '';
+        }
         return (
-          <div className="col-md-1">
+          <tr>
+              <td className={this.state.danger?"danger":"success"}>
+                <center><h4> &#8987; {repr_time(this.state.time_waiting)} </h4></center>
+              </td>
+          </tr>
+        )
+      }.bind(this);
+      
+      var showCount = function(){
+        if (this.state.count == 0){
+          return '';
+        }
+        return <tr><td><center><h4> {this.state.count} </h4></center></td></tr>;
+      }.bind(this);
+      
+      return (
+    <div className="col-xs-1">
     <table className="table table-condensed">
       <thead>
         <tr>
           <th>
             <span className="pull-left">{this.state.name}</span>
-            <span className="pull-right">
-              &#9742; {repr_time(this.state.time_talking)}
+            <span className="pull-right">{time_talking}
             </span>
             <div className="clearfix"></div>
           </th>
         </tr>
       </thead>
       <tbody>
+        {range.map(function(i) {
+          return (
           <tr>
-              <td className="success"></td>
+              <td className={this.state.danger?"danger":"success"}></td>
           </tr>
-          <tr>
-              <td className="success"></td>
-          </tr>
-          <tr>
-              <td className="success"></td>
-          </tr>
-          <tr>
-              <td className="success"></td>
-          </tr>
-          <tr>
-              <td className="success"></td>
-          </tr>
-          <tr>
-              <td className="success"></td>
-          </tr>
-          <tr>
-              <td className="success"></td>
-          </tr>
-          <tr>
-              <td className="success"></td>
-          </tr>
-          <tr>
-              <td className="success"></td>
-          </tr>
-          <tr>
-              <td className="success"></td>
-          </tr>
-
-          <tr>
-              <td className="success"><center><h4>&#8987; 11:34</h4></center></td>
-          </tr>
-          <tr>
-              <td><center><h4>11</h4></center></td>
-          </tr>
+          )})}
+        {showWaitingTime()}
+        {showCount()}
       </tbody>
     </table>
   </div>
-        )
+    );
     }
+    
 });
 
 var QueuesTable= React.createClass({
@@ -168,7 +151,7 @@ var QueuesTable= React.createClass({
                   if (event && event.q_name == q_name){
                     var queue_data = event;
                   } else {
-                    var queue_data = queues[q_name]
+                    var queue_data = queues[q_name];
                   }
                   return <Queue data={queue_data}/>
               })}
