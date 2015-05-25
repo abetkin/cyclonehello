@@ -11,7 +11,7 @@ from monast import Monast, RunMonast
 import ipdb
 
 SERVER = 'Main'
-DANGER_TIME = 10
+DANGER_TIME = 60
 
 class MainHandler(cyclone.web.RequestHandler):
 
@@ -124,25 +124,15 @@ class Queue(object):
             return int(time.time() - self.last_call_time)
 
     def send_event(self, old_state):
-        smth_changed = self.count != old_state['count']
-        if old_state['client_talking'] == self.client_talking:
-            time_talking = None
-        else:
-            time_talking =  self.time_talking
-            smth_changed = True
-        if old_state['longest_waiting'] == self.longest_waiting:
-            time_waiting = None
-        else:
-            time_waiting = self.time_waiting
-            smth_changed = True
-        if smth_changed:
-            event = {
-                'q_name': self.name,
-                'count': self.count,
-                'time_talking': time_talking,
-            }
-            if time_waiting is not None:
-                event['time_waiting'] = time_waiting
+        event = {}
+        if self.count != old_state['count']:
+            event['count'] = self.count
+        if old_state['client_talking'] != self.client_talking:
+            event['time_talking'] =  self.time_talking
+        if old_state['longest_waiting'] != self.longest_waiting:
+            event['time_waiting'] = self.time_waiting
+        if event:
+            event['q_name'] = self.name
             Mona.instance.sendEvent(json.dumps(event))
     
     @property
