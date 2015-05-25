@@ -137,11 +137,12 @@ class Queue(object):
             smth_changed = True
         if smth_changed:
             event = {
-                'time_talking': time_talking,
-                'time_waiting': time_waiting,
                 'q_name': self.name,
                 'count': self.count,
+                'time_talking': time_talking,
             }
+            if time_waiting is not None:
+                event['time_waiting'] = time_waiting
             Mona.instance.sendEvent(json.dumps(event))
     
     @property
