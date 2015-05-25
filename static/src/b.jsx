@@ -7,14 +7,13 @@ var repr_time = function(data){
     var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
     var seconds = sec_num - (hours * 3600) - (minutes * 60);
 
-    if (hours == 0) {
-      hours = "";
-    } else if (hours   < 10) {
-      hours  = "0" + hours + ":";
-    }
-    if (minutes < 10) {minutes = "0" + minutes + ":";}
+    if (minutes < 10) {minutes = "0" + minutes;}
     if (seconds < 10) {seconds = "0" + seconds;}
-    var time = hours + minutes + seconds;
+    var time = minutes + ':' + seconds;
+    if (hours) {
+      if (hours < 10) hours  = "0" + hours;
+      time = hours + ':' + time;
+    }
     return time;
 }
 
