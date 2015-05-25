@@ -18,7 +18,7 @@ var repr_time = function(data){
 }
 
 var Queue = React.createClass({
-  
+
     getInitialState: function() {
      return {
         count_waiting: this.props.data.count_waiting,
@@ -39,7 +39,7 @@ var Queue = React.createClass({
         state.time_waiting = this.state.time_waiting + 1;
         if (state.time_waiting > danger_time) {
           state.danger = true;
-        } 
+        }
       } else {
           state.danger = false;
       }
@@ -67,7 +67,7 @@ var Queue = React.createClass({
           return (count_talking == 1? '': count_talking)
                   + '\u260E ' + time_talking;
       }.bind(this);
-      
+
       var range = [], i = 0;
       if (this.state.count_waiting > 0) {
         while (++i <= this.state.count_waiting - 1) range.push('blank');
@@ -76,24 +76,32 @@ var Queue = React.createClass({
       var showWaitingTime = function(){
         return <center><h4> &#8987; {repr_time(this.state.time_waiting)} </h4></center>;
       }.bind(this);
-      
+
       var showCount = function(){
         if (this.state.count_waiting == 0) {
           return undefined;
         }
         return <tr><td><center><h4> {this.state.count_waiting} </h4></center></td></tr>;
       }.bind(this);
-      
+
+      var formatHeader = function(){
+          var talking_time = showTalkingTime();
+          if (!talking_time) {
+            return <center>{this.state.name}</center>;
+          }
+          return (<div>
+            <span className="pull-left">{this.state.name}</span>
+            <span className="pull-right">{showTalkingTime()}</span>
+            <div className="clearfix"></div>
+          </div>)
+      }.bind(this);
+
       return (
     <div className="col-xs-1">
     <table className="table table-condensed">
       <thead>
         <tr>
-          <th>
-            <span className="pull-left">{this.state.name}</span>
-            <span className="pull-right">{showTalkingTime()}</span>
-            <div className="clearfix"></div>
-          </th>
+          <th>{formatHeader()}</th>
         </tr>
       </thead>
       <tbody>
@@ -111,7 +119,7 @@ var Queue = React.createClass({
   </div>
     );
     }
-    
+
 });
 
 var queues_table_header_offsets = {};
