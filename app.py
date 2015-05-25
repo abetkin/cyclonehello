@@ -15,19 +15,19 @@ SERVER = 'Main'
 class MainHandler(cyclone.web.RequestHandler):
 
     def get(self):
-        with ipdb.launch_ipdb_on_exception():
-            Queue.ensure_instances()
-    
-            def queues():
-                for queue in Queue.instances.values():
-                    yield queue.name, {
-                        'name': queue.name,
-                        'time_waiting': queue.time_waiting,
-                        'time_talking': queue.time_talking,
-                        'count': queue.count,
-                    }
-            queues_json = json.dumps(dict(queues()))
-            self.render('index.html', queues_json=queues_json)
+        # with ipdb.launch_ipdb_on_exception():
+        Queue.ensure_instances()
+
+        def queues():
+            for queue in Queue.instances.values():
+                yield queue.name, {
+                    'name': queue.name,
+                    'time_waiting': queue.time_waiting,
+                    'time_talking': queue.time_talking,
+                    'count': queue.count,
+                }
+        queues_json = json.dumps(dict(queues()))
+        self.render('index.html', queues_json=queues_json)
 
 
 class Application(cyclone.web.Application):
@@ -70,8 +70,6 @@ class Mona(Monast):
 
     def _updateQueue(self, servername, **kw):
         super(Mona, self)._updateQueue(servername, **kw)
-        # with ipdb.launch_ipdb_on_exception():
-        # Queue.update() # instance
         Queue.ensure_instances()
         for queue in Queue.instances.values():
             queue.do_update()
@@ -88,8 +86,8 @@ class Queue(object):
 
     longest_waiting = None
     client_talking = None
-    time_talking = None
-    time_waiting = None
+    oldest_join_time = None
+    last_call_time = None
     count = 0
 
     @classmethod
@@ -112,44 +110,29 @@ class Queue(object):
                 return client_id, int(time.time() - call.starttime)
         return (None, None)
 
+    @property
+    def time_waiting(self):
+        if self.longest_waiting:
+            return int(time.time() - self.oldest_join_time)
 
-    def get_state(self):
-        clients = self.server.status.queueClients
+    @property
+    def time_talking(self):
+        if self.client_talking:
+            return int(time.time() - self.last_call_time)
 
-
-    def do_update(self, send_event=True):
-        count = 0
-        time_joined = None
-        longest_waiting = None
-        clients = self.server.status.queueClients
-        for (q_name, iden), client in clients.items():
-            if (self.name == q_name):
-                count += 1
-                if time_joined is None or client.jointime < time_joined:
-                    time_joined = client.jointime
-                    longest_waiting = iden
-        self.client_talking, self.time_talking = self.get_client_talking()
-        smth_changed = count != self.count
-        self.count = count
-        if client_talking == self.client_talking:
+    def send_event(self, old_state):
+        smth_changed = self.count != old_state['count']
+        if old_state['client_talking'] == self.client_talking:
             time_talking = None
         else:
-            
-            time_talking = self.time_talking
-            self.client_talking = client_talking
+            time_talking =  self.time_talking
             smth_changed = True
-        send_event = send_event and smth_changed
-        if time_joined is not None:
-            self.time_waiting = int(time.time() - time_joined)
-        if longest_waiting == self.longest_waiting or time_joined is None:
+        if old_state['longest_waiting'] == self.longest_waiting:
             time_waiting = None
         else:
-            self.longest_waiting = longest_waiting
             time_waiting = self.time_waiting
-        
-        # TODO .__dict__.update(...)
-        
-        if send_event:
+            smth_changed = True
+        if smth_changed:
             event = {
                 'time_talking': time_talking,
                 'time_waiting': time_waiting,
@@ -157,6 +140,38 @@ class Queue(object):
                 'count': self.count,
             }
             Mona.instance.sendEvent(json.dumps(event))
+    
+
+    def do_update(self, send_event=True):
+        old_state = {
+            'count': self.count,
+            'longest_waiting': self.longest_waiting,
+            'client_talking': self.client_talking,
+        }
+        # Determine the longest waiting client
+        count = 0
+        join_time = None
+        longest_waiting = None
+        clients = self.server.status.queueClients
+        for (q_name, iden), client in clients.items():
+            if self.name == q_name:
+                count += 1
+                if join_time is None or client.jointime < join_time:
+                    join_time = client.jointime
+                    longest_waiting = iden
+        self.count = count
+        self.longest_waiting = longest_waiting
+        self.oldest_join_time = join_time
+        # Get the current call
+        for client_id, call in self.server.status.queueCalls.items():
+            if self.name == call.client['queue']:
+                self.client_talking = client_id
+                self.last_call_time = call.starttime
+                break
+        else:
+            self.client_talking = None
+        if send_event:
+            self.send_event(old_state)
 
 
 if __name__ == '__main__':

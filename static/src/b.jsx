@@ -23,36 +23,39 @@ var Queue = React.createClass({
     WAIT_LIMIT: 10 * 1,
   
     getInitialState: function() {
-      return {};
+     return {
+        count: this.props.data.count,
+        name: this.props.data.name,
+        time_waiting: this.props.data.time_waiting,
+        time_talking: this.props.data.time_talking,
+        danger: false,
+      };
     },
     periodicTask: function(){
       state = {
         count: this.state.count,
         danger: this.state.danger
       };
-      if (this.state.count && this.state.time_waiting){
+      if (this.state.count && this.state.time_waiting != undefined){
         state.time_waiting = this.state.time_waiting + 1;
         if (state.time_waiting > this.WAIT_LIMIT) {
           state.danger = true;
-        } else {
+        } 
+      } else {
           state.danger = false;
-        }
       }
       if (this.state.time_talking != undefined) {
         state.time_talking = this.state.time_talking + 1;
       }
-      console.log('task state: ', state)
       this.setState(state);
     },
     componentDidMount: function() {
-      console.log('props data: ', this.props.data)
       this.setState(this.props.data);
       this.timer = window.setInterval(this.periodicTask, 1000);
     },
     componentWillReceiveProps: function(nextProps) {
       var state = jQuery.extend({}, this.state);
       var data = jQuery.extend(state, nextProps.data);
-      console.log('state data: ', data)
       this.setState(data);
     },
     render: function(){
@@ -63,26 +66,17 @@ var Queue = React.createClass({
         time_talking = '';
       }
       var range = [], i = 0;
-      if (this.state.count > 1) {
-        while (++i <= this.state.count - 1) range.push(i);
+      if (this.state.count > 0) {
+        while (++i <= this.state.count - 1) range.push('blank');
+        range.push('time')
       }
-      console.log('danger: ', this.state.danger)
-      var showWaitingTime = function(){
-        if (this.state.count == 0){
-          return '';
-        }
-        return (
-          <tr>
-              <td className={this.state.danger?"danger":"success"}>
-                <center><h4> &#8987; {repr_time(this.state.time_waiting)} </h4></center>
-              </td>
-          </tr>
-        )
+      var showTime = function(){
+        return <center><h4> &#8987; {repr_time(this.state.time_waiting)} </h4></center>;
       }.bind(this);
       
       var showCount = function(){
-        if (this.state.count == 0){
-          return '';
+        if (this.state.count == 0) {
+          return undefined;
         }
         return <tr><td><center><h4> {this.state.count} </h4></center></td></tr>;
       }.bind(this);
@@ -101,13 +95,14 @@ var Queue = React.createClass({
         </tr>
       </thead>
       <tbody>
-        {range.map(function(i) {
+        {range.map(function(typ) {
           return (
           <tr>
-              <td className={this.state.danger?"danger":"success"}></td>
+              <td className={this.state.danger?"danger":"success"}>
+                {typ == 'time'? showTime(): ''}
+              </td>
           </tr>
-          )})}
-        {showWaitingTime()}
+          )}.bind(this))}
         {showCount()}
       </tbody>
     </table>
@@ -121,13 +116,13 @@ var QueuesTable= React.createClass({
     eventsource: new EventSource('/eventsource'),
 
     onEvent: function(ev) {
-      data = JSON.parse(ev.data)
-      info = {}
-      info[data.q_name] = data
-      this.state.queues[data.q_name] = data
+      data = JSON.parse(ev.data);
+      info = {};
+      info[data.q_name] = data;
+      this.state.queues[data.q_name] = data;
       var queues = jQuery.extend(info, this.state.queues);
 
-      this.setState({queues: queues, event: data})
+      this.setState({queues: queues, event: data});
       // only if length changes
     },
     getInitialState: function() {
