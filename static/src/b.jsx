@@ -20,15 +20,14 @@ var repr_time = function(data){
 
 var Queue = React.createClass({
   
-    WAIT_LIMIT: 10 * 1,
-  
     getInitialState: function() {
      return {
         count: this.props.data.count,
         name: this.props.data.name,
         time_waiting: this.props.data.time_waiting,
         time_talking: this.props.data.time_talking,
-        danger: false,
+        danger: this.props.data.danger,
+        danger_time: this.props.data.danger_time,
       };
     },
     periodicTask: function(){
@@ -36,9 +35,10 @@ var Queue = React.createClass({
         count: this.state.count,
         danger: this.state.danger
       };
+      var danger_time = parseInt(this.state.danger_time);
       if (this.state.count && this.state.time_waiting != undefined){
         state.time_waiting = this.state.time_waiting + 1;
-        if (state.time_waiting > this.WAIT_LIMIT) {
+        if (state.time_waiting > danger_time) {
           state.danger = true;
         } 
       } else {

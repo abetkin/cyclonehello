@@ -11,6 +11,7 @@ from monast import Monast, RunMonast
 import ipdb
 
 SERVER = 'Main'
+DANGER_TIME = 10
 
 class MainHandler(cyclone.web.RequestHandler):
 
@@ -25,6 +26,8 @@ class MainHandler(cyclone.web.RequestHandler):
                     'time_waiting': queue.time_waiting,
                     'time_talking': queue.time_talking,
                     'count': queue.count,
+                    'danger': queue.danger,
+                    'danger_time': DANGER_TIME,
                 }
         queues_json = json.dumps(dict(queues()))
         self.render('index.html', queues_json=queues_json)
@@ -141,6 +144,10 @@ class Queue(object):
             }
             Mona.instance.sendEvent(json.dumps(event))
     
+    @property
+    def danger(self):
+        ''''''
+        return self.time_waiting > DANGER_TIME
 
     def do_update(self, send_event=True):
         old_state = {
