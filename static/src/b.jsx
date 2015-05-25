@@ -21,7 +21,7 @@ var Queue = React.createClass({
   
     getInitialState: function() {
      return {
-        count: this.props.data.count,
+        count_waiting: this.props.data.count_waiting,
         name: this.props.data.name,
         time_waiting: this.props.data.time_waiting,
         time_talking: this.props.data.time_talking,
@@ -31,11 +31,11 @@ var Queue = React.createClass({
     },
     periodicTask: function(){
       state = {
-        count: this.state.count,
+        count_waiting: this.state.count_waiting,
         danger: this.state.danger
       };
       var danger_time = parseInt(this.state.danger_time);
-      if (this.state.count && this.state.time_waiting != undefined){
+      if (this.state.count_waiting && this.state.time_waiting != undefined){
         state.time_waiting = this.state.time_waiting + 1;
         if (state.time_waiting > danger_time) {
           state.danger = true;
@@ -58,26 +58,30 @@ var Queue = React.createClass({
       this.setState(data);
     },
     render: function(){
-      var time_talking = repr_time(this.state.time_talking);
-      if (time_talking) {
-        time_talking ='\u260E ' + time_talking;
-      } else {
-        time_talking = '';
-      }
+      var showTalkingTime = function(){
+          var count_talking = this.state.count_talking;
+          if (!count_talking) {
+            return '';
+          }
+          var time_talking = repr_time(this.state.time_talking);
+          return (count_talking == 1? '': count_talking)
+                  + '\u260E ' + time_talking;
+      }.bind(this);
+      
       var range = [], i = 0;
-      if (this.state.count > 0) {
-        while (++i <= this.state.count - 1) range.push('blank');
+      if (this.state.count_waiting > 0) {
+        while (++i <= this.state.count_waiting - 1) range.push('blank');
         range.push('time')
       }
-      var showTime = function(){
+      var showWaitingTime = function(){
         return <center><h4> &#8987; {repr_time(this.state.time_waiting)} </h4></center>;
       }.bind(this);
       
       var showCount = function(){
-        if (this.state.count == 0) {
+        if (this.state.count_waiting == 0) {
           return undefined;
         }
-        return <tr><td><center><h4> {this.state.count} </h4></center></td></tr>;
+        return <tr><td><center><h4> {this.state.count_waiting} </h4></center></td></tr>;
       }.bind(this);
       
       return (
@@ -87,8 +91,7 @@ var Queue = React.createClass({
         <tr>
           <th>
             <span className="pull-left">{this.state.name}</span>
-            <span className="pull-right">{time_talking}
-            </span>
+            <span className="pull-right">{showTalkingTime()}</span>
             <div className="clearfix"></div>
           </th>
         </tr>
@@ -98,7 +101,7 @@ var Queue = React.createClass({
           return (
           <tr>
               <td className={this.state.danger?"danger":"success"}>
-                {typ == 'time'? showTime(): ''}
+                {typ == 'time'? showWaitingTime(): ''}
               </td>
           </tr>
           )}.bind(this))}
@@ -110,6 +113,8 @@ var Queue = React.createClass({
     }
     
 });
+
+var queues_table_header_offsets = {};
 
 var QueuesTable= React.createClass({
     eventsource: new EventSource('/eventsource'),

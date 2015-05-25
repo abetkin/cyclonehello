@@ -24,8 +24,9 @@ class MainHandler(cyclone.web.RequestHandler):
                 yield queue.name, {
                     'name': queue.name,
                     'time_waiting': queue.time_waiting,
+                    'count_waiting': queue.count_waiting,
                     'time_talking': queue.time_talking,
-                    'count': queue.count,
+                    'count_talking': queue.count_talking,
                     'danger': queue.danger,
                     'danger_time': DANGER_TIME,
                 }
@@ -88,10 +89,11 @@ class Queue(object):
     instances = None # {queue name: queue}
 
     longest_waiting = None
-    client_talking = None
+    longest_talking = None
     oldest_join_time = None
-    last_call_time = None
-    count = 0
+    oldest_call_time = None
+    count_waiting = 0
+    count_talking = 0
 
     @classmethod
     def ensure_instances(cls):
@@ -120,17 +122,19 @@ class Queue(object):
 
     @property
     def time_talking(self):
-        if self.client_talking:
-            return int(time.time() - self.last_call_time)
+        if self.longest_talking:
+            return int(time.time() - self.oldest_call_time)
 
     def send_event(self, old_state):
         event = {}
-        if self.count != old_state['count']:
-            event['count'] = self.count
-        if old_state['client_talking'] != self.client_talking:
-            event['time_talking'] =  self.time_talking
+        if self.count_waiting != old_state['count_waiting']:
+            event['count_waiting'] = self.count_waiting
         if old_state['longest_waiting'] != self.longest_waiting:
             event['time_waiting'] = self.time_waiting
+        if old_state['count_talking'] != self.count_talking:
+            event['count_talking'] = self.count_talking
+        if old_state['longest_talking'] != self.longest_talking:
+            event['time_talking'] =  self.time_talking
         if event:
             event['q_name'] = self.name
             Mona.instance.sendEvent(json.dumps(event))
@@ -142,32 +146,38 @@ class Queue(object):
 
     def do_update(self, send_event=True):
         old_state = {
-            'count': self.count,
+            'count_waiting': self.count_waiting,
+            'count_talking': self.count_talking,
             'longest_waiting': self.longest_waiting,
-            'client_talking': self.client_talking,
+            'longest_talking': self.longest_talking,
         }
         # Determine the longest waiting client
-        count = 0
+        count_waiting = 0
         join_time = None
         longest_waiting = None
         clients = self.server.status.queueClients
         for (q_name, iden), client in clients.items():
             if self.name == q_name:
-                count += 1
+                count_waiting += 1
                 if join_time is None or client.jointime < join_time:
                     join_time = client.jointime
                     longest_waiting = iden
-        self.count = count
+        self.count_waiting = count_waiting
         self.longest_waiting = longest_waiting
         self.oldest_join_time = join_time
-        # Get the current call
+        # Get the longest call
+        count_talking = 0
+        longest_talking = None
+        call_time = None
         for client_id, call in self.server.status.queueCalls.items():
             if self.name == call.client['queue']:
-                self.client_talking = client_id
-                self.last_call_time = call.starttime
-                break
-        else:
-            self.client_talking = None
+                count_talking += 1
+                if call_time is None or call.starttime < call_time:
+                    longest_talking = client_id
+                    call_time = call.starttime
+        self.longest_talking = longest_talking
+        self.oldest_call_time = call_time
+        self.count_talking = count_talking
         if send_event:
             self.send_event(old_state)
 
