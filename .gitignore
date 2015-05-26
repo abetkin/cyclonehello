@@ -53,5 +53,3 @@ docs/_build/
 # PyBuilder
 target/
 TODO
-alkor_test-master
-static/bower_components/*
