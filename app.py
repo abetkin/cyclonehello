@@ -11,7 +11,7 @@ from monast import Monast, RunMonast
 import ipdb
 
 SERVER = 'Main'
-DANGER_TIME = 60
+DANGER_TIME = 10 * 60
 
 class MainHandler(cyclone.web.RequestHandler):
 
@@ -73,10 +73,12 @@ class Mona(Monast):
             http_client.sendEvent(event)
 
     def _updateQueue(self, servername, **kw):
+        queue = kw.get('queue')
         super(Mona, self)._updateQueue(servername, **kw)
-        Queue.ensure_instances()
-        for queue in Queue.instances.values():
-            queue.do_update()
+        if queue:
+            Queue.ensure_instances()
+            #
+            Queue.instances[queue].do_update()
 
 
 import time
@@ -144,6 +146,8 @@ class Queue(object):
         ''''''
         return self.time_waiting > DANGER_TIME
 
+
+    # this queue - ?
     def do_update(self, send_event=True):
         old_state = {
             'count_waiting': self.count_waiting,
@@ -177,12 +181,12 @@ class Queue(object):
                     call_time = call.starttime
         self.longest_talking = longest_talking
         self.oldest_call_time = call_time
+        print self.name, '=>', call_time
         self.count_talking = count_talking
         if send_event:
             self.send_event(old_state)
 
 
 if __name__ == '__main__':
-    # ipdb.set_trace()
     reactor.listenTCP(8899, Application(), interface="0.0.0.0")
     RunMonast(Mona)

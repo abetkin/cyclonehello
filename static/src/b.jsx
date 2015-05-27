@@ -53,8 +53,11 @@ var Queue = React.createClass({
       this.timer = window.setInterval(this.periodicTask, 1000);
     },
     componentWillReceiveProps: function(nextProps) {
+      if (!nextProps.event) {
+        return;
+      }
       var state = jQuery.extend({}, this.state);
-      var data = jQuery.extend(state, nextProps.data);
+      var data = jQuery.extend(state, nextProps.event);
       this.setState(data);
     },
     render: function(){
@@ -122,8 +125,6 @@ var Queue = React.createClass({
 
 });
 
-var queues_table_header_offsets = {};
-
 var QueuesTable= React.createClass({
     eventsource: new EventSource('/eventsource'),
 
@@ -138,7 +139,6 @@ var QueuesTable= React.createClass({
       // only if length changes
     },
     getInitialState: function() {
-        // init. state
         return {
           queues: queues_json,
           event: {},
@@ -148,22 +148,21 @@ var QueuesTable= React.createClass({
       this.eventsource.onmessage = this.onEvent;
     },
     render: function(){
-        var q_names = Object.keys(this.state.queues);
-        q_names.sort();
-        var queues = this.state.queues;
-        var event = this.state.event;
-        return (
-          <div className="row">
-              {q_names.map(function(q_name) {
-                  if (event && event.q_name == q_name){
-                    var queue_data = event;
-                  } else {
-                    var queue_data = queues[q_name];
-                  }
-                  return <Queue data={queue_data}/>
-              })}
-          </div>
-      )
+      var queues = this.state.queues;
+      var q_names = Object.keys(queues);
+      var event = this.state.event;
+      q_names.sort();
+      return (
+        <div className="row">
+            {q_names.map(function(q_name) {
+                return (
+                  <Queue data={queues[q_name]}
+                         event={event.q_name == q_name ? event: null}
+                         key={q_name}/>
+                );
+            })}
+        </div>
+        );
     }
 });
 
