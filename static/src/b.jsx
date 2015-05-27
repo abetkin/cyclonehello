@@ -17,6 +17,84 @@ var repr_time = function(data){
     return time;
 }
 
+var TalkingInfo = React.createClass({
+
+    getInitialState: function() {
+      return {info: jQuery.extend({}, this.props.info)};
+    },
+    componentWillReceiveProps: function(nextProps) {
+      if (!nextProps.info) {
+        return;
+      }
+      console.log('receive', nextProps.info);
+      this.setState({info: nextProps.info});
+    },
+    showTalkingTime: function(){
+      var info = this.state.info;
+      var channel_ids = Object.keys(info);
+      var time = null;
+      channel_ids.forEach(function (key){
+        if (time === null || time < info[key]) {
+          time = info[key];
+        }
+      });
+      if (!channel_ids.length) {
+        return '';
+      };
+      time = repr_time(time);
+      return (channel_ids.length == 1 ? '': channel_ids.length)
+              + '\u260E ' + time;
+    },
+    onTimer: function(){
+      var channel_ids = Object.keys(this.state.info);
+      info = {};
+      channel_ids.map(function(key) {
+        info[key].agent = this.state.info[key].agent;
+        info[key].time = this.state.info[key].time + 1;
+      });
+      this.setState({info: info});
+    },
+    componentDidMount: function() {
+      this.timer = window.setInterval(this.onTimer, 1000);
+      $("#talking_time").hover(this.showPopup, this.hidePopup);
+    },
+    makePopup: function(){
+      var info = this.state.info;
+      var channel_ids = Object.keys(info);
+      return (
+      <table className="table table-condensed">
+        <tbody>
+          {channel_ids.map(function(key) {
+              return (
+                <tr>
+                    <td>{info[key].agent}</td>
+                    <td>{info[key].time}</td>
+                </tr>
+              )})}
+        </tbody>
+      </table>
+      );
+    },
+    showPopup: function(hoveritem){
+      popup = document.getElementById("popup");
+      popup.style.visibility = "Visible";
+    },
+    hidePopup: function(){
+      popup = document.getElementById("popup");
+      popup.style.visibility = "Hidden";
+    },
+    render: function(){
+      return (
+      <div>
+        <div id="talking_time">{this.showTalkingTime()}</div>
+        <div id="popup" style={{visibility: "hidden"}}>
+        {this.makePopup()}
+        </div>
+      </div>
+      );
+    }
+});
+
 var Queue = React.createClass({
 
     getInitialState: function() {
@@ -24,7 +102,7 @@ var Queue = React.createClass({
         count_waiting: this.props.data.count_waiting,
         name: this.props.data.name,
         time_waiting: this.props.data.time_waiting,
-        time_talking: this.props.data.time_talking,
+        talking_channels: this.props.data.talking_channels,
         danger: this.props.data.danger,
         danger_time: this.props.data.danger_time,
       };
@@ -32,7 +110,8 @@ var Queue = React.createClass({
     periodicTask: function(){
       state = {
         count_waiting: this.state.count_waiting,
-        danger: this.state.danger
+        danger: this.state.danger,
+        talking_channels: this.state.talking_channels,
       };
       var danger_time = parseInt(this.state.danger_time);
       if (this.state.count_waiting && this.state.time_waiting != undefined){
@@ -43,21 +122,22 @@ var Queue = React.createClass({
       } else {
           state.danger = false;
       }
-      if (this.state.time_talking != undefined) {
-        state.time_talking = this.state.time_talking + 1;
-      }
       this.setState(state);
     },
     componentDidMount: function() {
       this.setState(this.props.data);
       this.timer = window.setInterval(this.periodicTask, 1000);
+      $("#waiting_time").hover(function(){
+          $(this).css("background-color", "yellow");
+          }, function(){
+          $(this).css("background-color", "pink");
+      });
     },
     componentWillReceiveProps: function(nextProps) {
       if (!nextProps.event) {
         return;
       }
-      var state = jQuery.extend({}, this.state);
-      var data = jQuery.extend(state, nextProps.event);
+      var data = jQuery.extend({}, this.state, nextProps.event);
       this.setState(data);
     },
     render: function(){
@@ -77,7 +157,9 @@ var Queue = React.createClass({
         range.push('time')
       }
       var showWaitingTime = function(){
-        return <center><h4> &#8987; {repr_time(this.state.time_waiting)} </h4></center>;
+        return (<div id="waiting_time">
+                <center><h4> &#8987; {repr_time(this.state.time_waiting)} </h4></center>
+                </div>)
       }.bind(this);
 
       var showCount = function(){
@@ -88,13 +170,15 @@ var Queue = React.createClass({
       }.bind(this);
 
       var formatHeader = function(){
-          var talking_time = showTalkingTime();
-          if (!talking_time) {
+          var talking_channels = this.state.talking_channels;
+          if (!talking_channels) {
             return <center>{this.state.name}</center>;
           }
           return (<div>
             <span className="pull-left">{this.state.name}</span>
-            <span className="pull-right">{showTalkingTime()}</span>
+            <span className="pull-right">
+              <TalkingInfo info={talking_channels}/>
+            </span>
             <div className="clearfix"></div>
           </div>)
       }.bind(this);
@@ -130,12 +214,7 @@ var QueuesTable= React.createClass({
 
     onEvent: function(ev) {
       data = JSON.parse(ev.data);
-      info = {};
-      info[data.q_name] = data;
-      this.state.queues[data.q_name] = data;
-      var queues = jQuery.extend(info, this.state.queues);
-
-      this.setState({queues: queues, event: data});
+      this.setState({queues: this.state.queues, event: data});
       // only if length changes
     },
     getInitialState: function() {
