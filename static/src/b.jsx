@@ -1,3 +1,6 @@
+var OverlayTrigger = ReactBootstrap.OverlayTrigger;
+var Popover = ReactBootstrap.Popover;
+
 var repr_time = function(data){
     if (data == undefined) {
       return undefined;
@@ -23,11 +26,22 @@ var TalkingInfo = React.createClass({
       return {info: jQuery.extend({}, this.props.info)};
     },
     componentWillReceiveProps: function(nextProps) {
-      if (!nextProps.info) {
+      if (!nextProps.info){
         return;
       }
-      console.log('receive', nextProps.info);
-      this.setState({info: nextProps.info});
+      var info = {};
+      console.log('agent', nextProps.info[key].agent);
+      Object.keys(nextProps.info).map(function(key){
+        if (this.state.info[key]) {
+          info[key] = {
+            time: this.state.info[key].time,
+            agent: nextProps.info[key].agent,
+          };
+        } else {
+          info[key] = nextProps.info[key];
+        }
+      }.bind(this));
+      this.setState({info: info});
     },
     showTalkingTime: function(){
       var info = this.state.info;
@@ -35,7 +49,7 @@ var TalkingInfo = React.createClass({
       var time = null;
       channel_ids.forEach(function (key){
         if (time === null || time < info[key]) {
-          time = info[key];
+          time = info[key].time;
         }
       });
       if (!channel_ids.length) {
@@ -46,17 +60,19 @@ var TalkingInfo = React.createClass({
               + '\u260E ' + time;
     },
     onTimer: function(){
-      var channel_ids = Object.keys(this.state.info);
-      info = {};
+      var result = {},
+      info = this.state.info,
+      channel_ids = Object.keys(info);
       channel_ids.map(function(key) {
-        info[key].agent = this.state.info[key].agent;
-        info[key].time = this.state.info[key].time + 1;
+        result[key] = {
+          agent: info[key].agent,
+          time: info[key].time + 1,
+        };
       });
-      this.setState({info: info});
+      this.setState({info: result});
     },
     componentDidMount: function() {
       this.timer = window.setInterval(this.onTimer, 1000);
-      $("#talking_time").hover(this.showPopup, this.hidePopup);
     },
     makePopup: function(){
       var info = this.state.info;
@@ -75,22 +91,14 @@ var TalkingInfo = React.createClass({
       </table>
       );
     },
-    showPopup: function(hoveritem){
-      popup = document.getElementById("popup");
-      popup.style.visibility = "Visible";
-    },
-    hidePopup: function(){
-      popup = document.getElementById("popup");
-      popup.style.visibility = "Hidden";
-    },
     render: function(){
       return (
-      <div>
+      <OverlayTrigger trigger='hover' placement='bottom'
+            overlay={<Popover title='Agents:'>
+            {this.makePopup()}
+            </Popover>}>
         <div id="talking_time">{this.showTalkingTime()}</div>
-        <div id="popup" style={{visibility: "hidden"}}>
-        {this.makePopup()}
-        </div>
-      </div>
+      </OverlayTrigger>
       );
     }
 });
@@ -127,29 +135,16 @@ var Queue = React.createClass({
     componentDidMount: function() {
       this.setState(this.props.data);
       this.timer = window.setInterval(this.periodicTask, 1000);
-      $("#waiting_time").hover(function(){
-          $(this).css("background-color", "yellow");
-          }, function(){
-          $(this).css("background-color", "pink");
-      });
     },
     componentWillReceiveProps: function(nextProps) {
       if (!nextProps.event) {
         return;
       }
+      console.log('chan>', nextProps.event.talking_channels);
       var data = jQuery.extend({}, this.state, nextProps.event);
       this.setState(data);
     },
     render: function(){
-      var showTalkingTime = function(){
-          var count_talking = this.state.count_talking;
-          if (!count_talking) {
-            return '';
-          }
-          var time_talking = repr_time(this.state.time_talking);
-          return (count_talking == 1? '': count_talking)
-                  + '\u260E ' + time_talking;
-      }.bind(this);
 
       var range = [], i = 0;
       if (this.state.count_waiting > 0) {
@@ -171,7 +166,7 @@ var Queue = React.createClass({
 
       var formatHeader = function(){
           var talking_channels = this.state.talking_channels;
-          if (!talking_channels) {
+          if (!talking_channels || !Object.keys(talking_channels).length) {
             return <center>{this.state.name}</center>;
           }
           return (<div>

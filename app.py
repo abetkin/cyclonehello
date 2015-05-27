@@ -129,8 +129,24 @@ class Queue(object):
             event['count_waiting'] = self.count_waiting
         if old_state['longest_waiting'] != self.longest_waiting:
             event['time_waiting'] = self.time_waiting
-        if old_state['talking_channels'].keys() != self.talking_channels.keys():
+
+        # channels
+        for chan_id in set(old_state['talking_channels']) - set(self.talking_channels):
+            if chan_id in self.server.status.channels:
+                self.talking_channels[chan_id] = old_state['talking_channels'][chan_id]
+        for chan_id in set(self.talking_channels) - set(old_state['talking_channels']):
+            if chan_id not in self.server.status.channels:
+                del self.talking_channels[chan_id]
+        added_info = False
+        for key, info in self.talking_channels.items():
+            if old_state['talking_channels'].get(key, {}).get('agent'):
+                if not info['agent']:
+                    added_info = True
+                    info['agent'] = old_state['talking_channels'][key]['agent']
+        if added_info or set(old_state['talking_channels']) != set(self.talking_channels):
             event['talking_channels'] =  self.talking_channels
+            print 'tc', self.talking_channels
+
         if event:
             event['q_name'] = self.name
             Mona.instance.sendEvent(json.dumps(event))
@@ -143,13 +159,17 @@ class Queue(object):
     def get_talking_channels(self, ):
         info = {}
         for client_id, call in self.server.status.queueCalls.items():
-            if self.name == call.client['queue'] and call.member:
+            if self.name == call.client['queue']:
+                if call.member:
+                    agent = call.member['name']
+                    # print '!!!', agent
+                else:
+                    agent = ''
                 info[client_id] = {
-                    'agent': call.member['name'],
+                    'agent': agent,
                     'time': int(time.time() - call.starttime),
                 }
         return info
-
 
     def do_update(self, send_event=True):
         old_state = {
