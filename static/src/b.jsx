@@ -24,10 +24,7 @@ var TalkingInfo = React.createClass({
 
     getInitialState: function() {
       {/*return {info: jQuery.extend({}, this.props.info)};*/}
-      return this.parseInfo(this.props.info)
-    },
-    parseInfo: function(info){
-      var agents = {}, times = {};
+      var agents = {}, times = {}, info=this.props.info;
       Object.keys(info).map(function(key){
           agents[key] = info[key].agent;
           times[key] = info[key].time;
@@ -38,18 +35,24 @@ var TalkingInfo = React.createClass({
         times: times,
       }
     },
-
     componentWillReceiveProps: function(nextProps) {
       if (!nextProps.info){
         return;
       }
-      {/*Object.keys(nextProps.info).map(function(key){
-        console.log('agent', nextProps.info[key].agent);
+      var agents = {}, times = {};
+      Object.keys(nextProps.info).map(function(key){
+          agents[key] = nextProps.info[key].agent;
+          if (!this.state.times[key]){
+            times[key] = nextProps.info[key].time;
+          } else {
+            times[key] = this.state.times[key]
+          }
+      }.bind(this));
+      this.times = times;
+      this.setState({
+        agents: agents,
+        times: times,
       });
-      */}
-      state = this.parseInfo(nextProps.info)
-      this.times = state.times;
-      this.setState(state);
     },
     showTalkingTime: function(){
       var times = this.state.times;
@@ -58,8 +61,6 @@ var TalkingInfo = React.createClass({
       channel_ids.map(function (key){
         if (time === null || time < times[key]) {
           time = times[key];
-
-          console.log('props', this.props);
         }
       }.bind(this));
       if (!channel_ids.length) {
@@ -71,18 +72,12 @@ var TalkingInfo = React.createClass({
     },
     onTimer: function(){
       Object.keys(this.times).map(function(key){
-          console.log('time::', this.state.times[key]);
           this.times[key] = this.times[key] + 1;
       }.bind(this));
 
       if (Object.keys(this.times).length && this.isMounted()) {
           this.setState({times: this.times});
-
       }
-      Object.keys(this.state.times).map(function(key){
-        console.log('::', this.state.times[key], this.times[key]);
-      }.bind(this));
-
     },
     componentDidMount: function() {
       this.timer = window.setInterval(this.onTimer, 1000);
@@ -93,10 +88,11 @@ var TalkingInfo = React.createClass({
       <table className="table table-condensed">
         <tbody>
           {channel_ids.map(function(key) {
+              var time = repr_time(this.state.times[key]);
               return (
                 <tr>
                     <td>{this.state.agents[key]}</td>
-                    <td>{this.state.times[key]}</td>
+                    <td>{time}</td>
                 </tr>
               )}.bind(this))}
         </tbody>
@@ -104,10 +100,6 @@ var TalkingInfo = React.createClass({
       );
     },
     render: function(){
-
-       Object.keys(this.state.times).map(function(key){
-        console.log('::', this.state.times[key], this.times[key]);
-      }.bind(this));
       return (
       <OverlayTrigger trigger='hover' placement='bottom'
             overlay={<Popover title='Agents:'>
@@ -119,49 +111,72 @@ var TalkingInfo = React.createClass({
     }
 });
 
+var WaitingTime = React.createClass({
+    getInitialState: function() {
+      this.timer = this.props.time;
+      return {
+        time: this.props.time,
+      };
+    },
+    componentWillReceiveProps: function(nextProps) {
+      this.setState({time: nextProps.time});
+    },
+    onTimer: function(){
+      var danger_time = parseInt(this.props.dangerTime);
+      this.timer= this.state.time + 1;
+      if (this.timer > this.state.dangerTime) {
+        this.props.setDanger();
+      } else {
+        this.props.unsetDanger();
+      }
+      if (this.isMounted()) {
+        this.setState({time: this.timer});
+      }
+      
+    },
+    componentDidMount: function() {
+      this.timer = window.setInterval(this.onTimer, 1000);
+    },
+    render: function(){
+        return (
+          <div id="waiting_time">
+          <center><h4> &#8987; {repr_time(this.state.time)} </h4></center>
+          </div>
+        )
+    }
+});
+
 var Queue = React.createClass({
 
     getInitialState: function() {
      return {
         count_waiting: this.props.data.count_waiting,
-        name: this.props.data.name,
         time_waiting: this.props.data.time_waiting,
         talking_channels: this.props.data.talking_channels,
         danger: this.props.data.danger,
-        danger_time: this.props.data.danger_time,
       };
     },
-    periodicTask: function(){
-      state = {
-        count_waiting: this.state.count_waiting,
-        danger: this.state.danger,
-        talking_channels: this.state.talking_channels,
-      };
-      var danger_time = parseInt(this.state.danger_time);
-      if (this.state.count_waiting && this.state.time_waiting != undefined){
-        state.time_waiting = this.state.time_waiting + 1;
-        if (state.time_waiting > danger_time) {
-          state.danger = true;
-        }
-      } else {
-          state.danger = false;
+    setDanger: function(){
+      if (!this.state.danger && this.isMounted()) {
+        this.setState({danger: true});
       }
-      this.setState(state);
+    },
+    unsetDanger: function(){
+      if (this.state.danger && this.isMounted()) {
+        this.setState({danger: false});
+      }
     },
     componentDidMount: function() {
       this.setState(this.props.data);
-      this.timer = window.setInterval(this.periodicTask, 1000);
     },
     componentWillReceiveProps: function(nextProps) {
       if (!nextProps.event) {
         return;
       }
-      console.log('chan>', nextProps.event.talking_channels);
       var data = jQuery.extend({}, this.state, nextProps.event);
       this.setState(data);
     },
     render: function(){
-      console.log('children', this.props.children);
       var range = [], i = 0;
       if (this.state.count_waiting > 0) {
         while (++i <= this.state.count_waiting - 1) range.push('blank');
@@ -186,10 +201,9 @@ var Queue = React.createClass({
             return <center>{this.state.name}</center>;
           }
           return (<div>
-            <span className="pull-left">{this.state.name}</span>
+            <span className="pull-left">{this.props.data.name}</span>
             <span className="pull-right">
-              <TalkingInfo info={talking_channels} key={this.name}
-                           ref="talkinginfo"/>
+              <TalkingInfo info={talking_channels} key={this.name}/>
             </span>
             <div className="clearfix"></div>
           </div>)
@@ -208,7 +222,12 @@ var Queue = React.createClass({
           return (
           <tr>
               <td className={this.state.danger?"danger":"success"}>
-                {typ == 'time'? showWaitingTime(): ''}
+                {typ == 'time'?
+                <WaitingTime time={this.state.time_waiting}
+                             setDanger={this.setDanger}
+                             unsetDanger={this.unsetDanger}
+                             dangerTime={this.props.data.danger_time}
+                             key={self.name}/>: ''}
               </td>
           </tr>
           )}.bind(this))}
