@@ -83,15 +83,20 @@ import time
 
 from itertools import groupby
 
+class MutableDict(dict):
+    pass
+
 class Queue(object):
     SERVER = 'Main'
     
-    instances = None # {queue name: queue}
+    instances = None               # {queue name: queue}
 
     longest_waiting = None
     talking_channels = {}
     oldest_join_time = None
     count_waiting = 0
+
+    agent_names = {}               # {channel_id: agent_name}
 
     @classmethod
     def ensure_instances(cls):
@@ -131,23 +136,25 @@ class Queue(object):
             event['time_waiting'] = self.time_waiting
 
         # channels
-        for chan_id in set(old_state['talking_channels']) - set(self.talking_channels):
-            if chan_id in self.server.status.channels:
-                self.talking_channels[chan_id] = old_state['talking_channels'][chan_id]
-        for chan_id in set(self.talking_channels) - set(old_state['talking_channels']):
-            if chan_id not in self.server.status.channels:
-                del self.talking_channels[chan_id]
-        added_info = False
-        for key, info in self.talking_channels.items():
-            if old_state['talking_channels'].get(key, {}).get('agent'):
-                if not info['agent']:
-                    added_info = True
-                    info['agent'] = old_state['talking_channels'][key]['agent']
-        if added_info or set(old_state['talking_channels']) != set(self.talking_channels):
+        # for chan_id in set(old_state['talking_channels']) - set(self.talking_channels):
+        #     if chan_id in self.server.status.channels:
+        #         self.talking_channels[chan_id] = old_state['talking_channels'][chan_id]
+        # for chan_id in set(self.talking_channels) - set(old_state['talking_channels']):
+        #     if chan_id not in self.server.status.channels:
+        #         del self.talking_channels[chan_id]
+        # added_info = False
+        # for key, info in self.talking_channels.items():
+        #     if old_state['talking_channels'].get(key, {}).get('agent'):
+        #         if not info['agent']:
+        #             added_info = True
+        #             info['agent'] = old_state['talking_channels'][key]['agent']
+        if set(old_state['talking_channels']) != set(self.talking_channels) \
+                or getattr(self.talking_channels, 'force_update', None):
             event['talking_channels'] =  self.talking_channels
-            print 'tc', self.talking_channels
+            # print 'tc', self.talking_channels
 
         if event:
+            print 'event', event
             event['q_name'] = self.name
             Mona.instance.sendEvent(json.dumps(event))
     
@@ -157,18 +164,26 @@ class Queue(object):
         return self.time_waiting > DANGER_TIME
 
     def get_talking_channels(self, ):
-        info = {}
+        info = MutableDict()
         for client_id, call in self.server.status.queueCalls.items():
             if self.name == call.client['queue']:
                 if call.member:
-                    agent = call.member['name']
-                    # print '!!!', agent
+                    self.agent_names[client_id] = call.member['name']
+                # agent = call.member['name']
+                # print '!!!', agent
+                # print '???', call.starttime
+                agent = self.agent_names.get(client_id)
+                if agent:
+                    info.force_update = True
                 else:
-                    agent = ''
+                    agent = 'Unknown'
                 info[client_id] = {
+                    
+                    
                     'agent': agent,
                     'time': int(time.time() - call.starttime),
                 }
+                    # ipdb.set_trace()
         return info
 
     def do_update(self, send_event=True):

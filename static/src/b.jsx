@@ -23,35 +23,45 @@ var repr_time = function(data){
 var TalkingInfo = React.createClass({
 
     getInitialState: function() {
-      return {info: jQuery.extend({}, this.props.info)};
+      {/*return {info: jQuery.extend({}, this.props.info)};*/}
+      return this.parseInfo(this.props.info)
     },
+    parseInfo: function(info){
+      var agents = {}, times = {};
+      Object.keys(info).map(function(key){
+          agents[key] = info[key].agent;
+          times[key] = info[key].time;
+      });
+      this.times = times;
+      return {
+        agents: agents,
+        times: times,
+      }
+    },
+
     componentWillReceiveProps: function(nextProps) {
       if (!nextProps.info){
         return;
       }
-      var info = {};
-      console.log('agent', nextProps.info[key].agent);
-      Object.keys(nextProps.info).map(function(key){
-        if (this.state.info[key]) {
-          info[key] = {
-            time: this.state.info[key].time,
-            agent: nextProps.info[key].agent,
-          };
-        } else {
-          info[key] = nextProps.info[key];
-        }
-      }.bind(this));
-      this.setState({info: info});
+      {/*Object.keys(nextProps.info).map(function(key){
+        console.log('agent', nextProps.info[key].agent);
+      });
+      */}
+      state = this.parseInfo(nextProps.info)
+      this.times = state.times;
+      this.setState(state);
     },
     showTalkingTime: function(){
-      var info = this.state.info;
-      var channel_ids = Object.keys(info);
+      var times = this.state.times;
+      var channel_ids = Object.keys(times);
       var time = null;
-      channel_ids.forEach(function (key){
-        if (time === null || time < info[key]) {
-          time = info[key].time;
+      channel_ids.map(function (key){
+        if (time === null || time < times[key]) {
+          time = times[key];
+
+          console.log('props', this.props);
         }
-      });
+      }.bind(this));
       if (!channel_ids.length) {
         return '';
       };
@@ -60,38 +70,44 @@ var TalkingInfo = React.createClass({
               + '\u260E ' + time;
     },
     onTimer: function(){
-      var result = {},
-      info = this.state.info,
-      channel_ids = Object.keys(info);
-      channel_ids.map(function(key) {
-        result[key] = {
-          agent: info[key].agent,
-          time: info[key].time + 1,
-        };
-      });
-      this.setState({info: result});
+      Object.keys(this.times).map(function(key){
+          console.log('time::', this.state.times[key]);
+          this.times[key] = this.times[key] + 1;
+      }.bind(this));
+
+      if (Object.keys(this.times).length && this.isMounted()) {
+          this.setState({times: this.times});
+
+      }
+      Object.keys(this.state.times).map(function(key){
+        console.log('::', this.state.times[key], this.times[key]);
+      }.bind(this));
+
     },
     componentDidMount: function() {
       this.timer = window.setInterval(this.onTimer, 1000);
     },
     makePopup: function(){
-      var info = this.state.info;
-      var channel_ids = Object.keys(info);
+      var channel_ids = Object.keys(this.state.agents);
       return (
       <table className="table table-condensed">
         <tbody>
           {channel_ids.map(function(key) {
               return (
                 <tr>
-                    <td>{info[key].agent}</td>
-                    <td>{info[key].time}</td>
+                    <td>{this.state.agents[key]}</td>
+                    <td>{this.state.times[key]}</td>
                 </tr>
-              )})}
+              )}.bind(this))}
         </tbody>
       </table>
       );
     },
     render: function(){
+
+       Object.keys(this.state.times).map(function(key){
+        console.log('::', this.state.times[key], this.times[key]);
+      }.bind(this));
       return (
       <OverlayTrigger trigger='hover' placement='bottom'
             overlay={<Popover title='Agents:'>
@@ -145,7 +161,7 @@ var Queue = React.createClass({
       this.setState(data);
     },
     render: function(){
-
+      console.log('children', this.props.children);
       var range = [], i = 0;
       if (this.state.count_waiting > 0) {
         while (++i <= this.state.count_waiting - 1) range.push('blank');
@@ -172,7 +188,8 @@ var Queue = React.createClass({
           return (<div>
             <span className="pull-left">{this.state.name}</span>
             <span className="pull-right">
-              <TalkingInfo info={talking_channels}/>
+              <TalkingInfo info={talking_channels} key={this.name}
+                           ref="talkinginfo"/>
             </span>
             <div className="clearfix"></div>
           </div>)
@@ -187,7 +204,7 @@ var Queue = React.createClass({
         </tr>
       </thead>
       <tbody>
-        {range.map(function(typ) {
+        {range.map(function(typ, i) {
           return (
           <tr>
               <td className={this.state.danger?"danger":"success"}>
