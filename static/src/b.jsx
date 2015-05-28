@@ -110,13 +110,15 @@ var TalkingInfo = React.createClass({
 
 var WaitingTime = React.createClass({
     getInitialState: function() {
-      this.timer = this.props.time;
+      this.timer = this.props.init_time;
       return {
-        time: this.props.time,
+        time: this.props.init_time,
       };
     },
     componentWillReceiveProps: function(nextProps) {
-      this.setState({time: nextProps.time});
+      if (nextProps.time) {
+        this.setState({time: time});
+      }
     },
     onTimer: function(){
       var danger_time = parseInt(this.props.dangerTime);
@@ -169,7 +171,7 @@ var Queue = React.createClass({
       if (!nextProps.event) {
         return;
       }
-      var data = jQuery.extend({}, this.state, nextProps.event);
+      var data = jQuery.extend({}, nextProps.event);
       this.setState(data);
     },
     formatHeader: function(){
@@ -186,11 +188,14 @@ var Queue = React.createClass({
         </div>)
     },
     formatRow: function(typ) {
+          var time = this.props.event ? this.props.event.time_waiting : null;
+          {/*TODO*/}
           return (
           <tr>
               <td className={this.state.danger?"danger":"success"}>
                 {typ == 'last_row'?
-                <WaitingTime time={this.state.time_waiting}
+                <WaitingTime time={time}
+                             init_time={this.state.time_waiting}
                              setDanger={this.setDanger}
                              unsetDanger={this.unsetDanger}
                              dangerTime={this.props.data.danger_time}
