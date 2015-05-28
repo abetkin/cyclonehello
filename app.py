@@ -135,26 +135,10 @@ class Queue(object):
         if old_state['longest_waiting'] != self.longest_waiting:
             event['time_waiting'] = self.time_waiting
 
-        # channels
-        # for chan_id in set(old_state['talking_channels']) - set(self.talking_channels):
-        #     if chan_id in self.server.status.channels:
-        #         self.talking_channels[chan_id] = old_state['talking_channels'][chan_id]
-        # for chan_id in set(self.talking_channels) - set(old_state['talking_channels']):
-        #     if chan_id not in self.server.status.channels:
-        #         del self.talking_channels[chan_id]
-        # added_info = False
-        # for key, info in self.talking_channels.items():
-        #     if old_state['talking_channels'].get(key, {}).get('agent'):
-        #         if not info['agent']:
-        #             added_info = True
-        #             info['agent'] = old_state['talking_channels'][key]['agent']
         if set(old_state['talking_channels']) != set(self.talking_channels) \
                 or getattr(self.talking_channels, 'force_update', None):
             event['talking_channels'] =  self.talking_channels
-            # print 'tc', self.talking_channels
-
         if event:
-            print 'event', event
             event['q_name'] = self.name
             Mona.instance.sendEvent(json.dumps(event))
     
@@ -169,21 +153,15 @@ class Queue(object):
             if self.name == call.client['queue']:
                 if call.member:
                     self.agent_names[client_id] = call.member['name']
-                # agent = call.member['name']
-                # print '!!!', agent
-                # print '???', call.starttime
                 agent = self.agent_names.get(client_id)
                 if agent:
                     info.force_update = True
                 else:
                     agent = 'Unknown'
                 info[client_id] = {
-                    
-                    
                     'agent': agent,
                     'time': int(time.time() - call.starttime),
                 }
-                    # ipdb.set_trace()
         return info
 
     def do_update(self, send_event=True):

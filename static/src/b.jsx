@@ -21,9 +21,7 @@ var repr_time = function(data){
 }
 
 var TalkingInfo = React.createClass({
-
     getInitialState: function() {
-      {/*return {info: jQuery.extend({}, this.props.info)};*/}
       var agents = {}, times = {}, info=this.props.info;
       Object.keys(info).map(function(key){
           agents[key] = info[key].agent;
@@ -54,21 +52,8 @@ var TalkingInfo = React.createClass({
         times: times,
       });
     },
-    showTalkingTime: function(){
-      var times = this.state.times;
-      var channel_ids = Object.keys(times);
-      var time = null;
-      channel_ids.map(function (key){
-        if (time === null || time < times[key]) {
-          time = times[key];
-        }
-      }.bind(this));
-      if (!channel_ids.length) {
-        return '';
-      };
-      time = repr_time(time);
-      return (channel_ids.length == 1 ? '': channel_ids.length)
-              + '\u260E ' + time;
+    componentDidMount: function() {
+      this.timer = window.setInterval(this.onTimer, 1000);
     },
     onTimer: function(){
       Object.keys(this.times).map(function(key){
@@ -79,8 +64,21 @@ var TalkingInfo = React.createClass({
           this.setState({times: this.times});
       }
     },
-    componentDidMount: function() {
-      this.timer = window.setInterval(this.onTimer, 1000);
+    showTalkingTime: function(){
+      var times = this.state.times;
+      var channel_ids = Object.keys(times);
+      var time = null;
+      channel_ids.map(function (key){
+        if (time === null || time < times[key]) {
+          time = times[key];
+        }
+      });
+      if (!channel_ids.length) {
+        return '';
+      };
+      time = repr_time(time);
+      return (channel_ids.length == 1 ? '': channel_ids.length)
+              + '\u260E ' + time;
     },
     makePopup: function(){
       var channel_ids = Object.keys(this.state.agents);
@@ -88,11 +86,10 @@ var TalkingInfo = React.createClass({
       <table className="table table-condensed">
         <tbody>
           {channel_ids.map(function(key) {
-              var time = repr_time(this.state.times[key]);
               return (
                 <tr>
                     <td>{this.state.agents[key]}</td>
-                    <td>{time}</td>
+                    <td>{repr_time(this.state.times[key])}</td>
                 </tr>
               )}.bind(this))}
         </tbody>
@@ -123,7 +120,7 @@ var WaitingTime = React.createClass({
     },
     onTimer: function(){
       var danger_time = parseInt(this.props.dangerTime);
-      this.timer= this.state.time + 1;
+      this.timer = this.state.time + 1;
       if (this.timer > this.state.dangerTime) {
         this.props.setDanger();
       } else {
@@ -147,7 +144,6 @@ var WaitingTime = React.createClass({
 });
 
 var Queue = React.createClass({
-
     getInitialState: function() {
      return {
         count_waiting: this.props.data.count_waiting,
@@ -176,53 +172,24 @@ var Queue = React.createClass({
       var data = jQuery.extend({}, this.state, nextProps.event);
       this.setState(data);
     },
-    render: function(){
-      var range = [], i = 0;
-      if (this.state.count_waiting > 0) {
-        while (++i <= this.state.count_waiting - 1) range.push('blank');
-        range.push('time')
-      }
-      var showWaitingTime = function(){
-        return (<div id="waiting_time">
-                <center><h4> &#8987; {repr_time(this.state.time_waiting)} </h4></center>
-                </div>)
-      }.bind(this);
-
-      var showCount = function(){
-        if (this.state.count_waiting == 0) {
-          return undefined;
+    formatHeader: function(){
+        var talking_channels = this.state.talking_channels;
+        if (!talking_channels || !Object.keys(talking_channels).length) {
+          return <center>{this.state.name}</center>;
         }
-        return <tr><td><center><h4> {this.state.count_waiting} </h4></center></td></tr>;
-      }.bind(this);
-
-      var formatHeader = function(){
-          var talking_channels = this.state.talking_channels;
-          if (!talking_channels || !Object.keys(talking_channels).length) {
-            return <center>{this.state.name}</center>;
-          }
-          return (<div>
-            <span className="pull-left">{this.props.data.name}</span>
-            <span className="pull-right">
-              <TalkingInfo info={talking_channels} key={this.name}/>
-            </span>
-            <div className="clearfix"></div>
-          </div>)
-      }.bind(this);
-
-      return (
-    <div className="col-xs-1">
-    <table className="table table-condensed">
-      <thead>
-        <tr>
-          <th>{formatHeader()}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {range.map(function(typ, i) {
+        return (<div>
+          <span className="pull-left">{this.props.data.name}</span>
+          <span className="pull-right">
+            <TalkingInfo info={talking_channels} key={this.name}/>
+          </span>
+          <div className="clearfix"></div>
+        </div>)
+    },
+    formatRow: function(typ) {
           return (
           <tr>
               <td className={this.state.danger?"danger":"success"}>
-                {typ == 'time'?
+                {typ == 'last_row'?
                 <WaitingTime time={this.state.time_waiting}
                              setDanger={this.setDanger}
                              unsetDanger={this.unsetDanger}
@@ -230,8 +197,32 @@ var Queue = React.createClass({
                              key={self.name}/>: ''}
               </td>
           </tr>
-          )}.bind(this))}
-        {showCount()}
+    )},
+    formatCount: function(){
+        if (this.state.count_waiting == 0) {
+          return undefined;
+        }
+        return (<tr><td><center><h4>
+            {this.state.count_waiting}
+            </h4></center></td></tr>);
+    },
+    render: function(){
+      var range = [], i = 0;
+      if (this.state.count_waiting > 0) {
+        while (++i <= this.state.count_waiting - 1) range.push('row');
+        range.push('last_row')
+      }
+      return (
+    <div className="col-xs-1">
+    <table className="table table-condensed">
+      <thead>
+        <tr>
+          <th>{this.formatHeader()}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {range.map(this.formatRow)}
+        {this.formatCount()}
       </tbody>
     </table>
   </div>
@@ -246,7 +237,6 @@ var QueuesTable= React.createClass({
     onEvent: function(ev) {
       data = JSON.parse(ev.data);
       this.setState({queues: this.state.queues, event: data});
-      // only if length changes
     },
     getInitialState: function() {
         return {
