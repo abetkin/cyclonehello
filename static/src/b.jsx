@@ -117,7 +117,7 @@ var WaitingTime = React.createClass({
     },
     componentWillReceiveProps: function(nextProps) {
       if (nextProps.time) {
-        this.setState({time: time});
+        this.setState({time: nextProps.time});
       }
     },
     onTimer: function(){
@@ -137,12 +137,15 @@ var WaitingTime = React.createClass({
       this.timer = window.setInterval(this.onTimer, 1000);
     },
     render: function(){
-        return (
-          <div id="waiting_time">
-          <center><h4> &#8987; {repr_time(this.state.time)} </h4></center>
-          </div>
-        )
-    }
+      var time = repr_time(this.state.time);
+      var msg = (this.props.count == 1 ? '': this.props.count) + '\u260E ' + time;
+      return (
+        <div>
+          <span className="pull-right text-danger">{msg}</span>
+          <div className="clearfix"></div>
+        </div>
+      )},
+
 });
 
 var Queue = React.createClass({
@@ -176,29 +179,31 @@ var Queue = React.createClass({
     },
     formatHeader: function(){
         var talking_channels = this.state.talking_channels;
+        var q_name = 'Q' + this.props.index;
         if (!talking_channels || !Object.keys(talking_channels).length) {
-          return <center>{this.state.name}</center>;
+          return <center>{q_name}</center>;
         }
         return (<div>
-          <span className="pull-left">{this.props.data.name}</span>
+          <span className="pull-left">{q_name}</span>
           <span className="pull-right">
             <TalkingInfo info={talking_channels} key={this.name}/>
           </span>
           <div className="clearfix"></div>
         </div>)
     },
-    formatRow: function(typ) {
+    formatRow: function(_, i) {
           var time = this.props.event ? this.props.event.time_waiting : null;
           {/*TODO*/}
           return (
           <tr>
               <td className={this.state.danger?"danger":"success"}>
-                {typ == 'last_row'?
+                {i == 0?
                 <WaitingTime time={time}
                              init_time={this.state.time_waiting}
                              setDanger={this.setDanger}
                              unsetDanger={this.unsetDanger}
                              dangerTime={this.props.data.danger_time}
+                             count={this.state.count_waiting}
                              key={self.name}/>: ''}
               </td>
           </tr>
@@ -214,8 +219,7 @@ var Queue = React.createClass({
     render: function(){
       var range = [], i = 0;
       if (this.state.count_waiting > 0) {
-        while (++i <= this.state.count_waiting - 1) range.push('row');
-        range.push('last_row')
+        while (++i <= this.state.count_waiting) range.push('.');
       }
       return (
     <div className="col-xs-1">
@@ -227,7 +231,6 @@ var Queue = React.createClass({
       </thead>
       <tbody>
         {range.map(this.formatRow)}
-        {this.formatCount()}
       </tbody>
     </table>
   </div>
@@ -259,10 +262,11 @@ var QueuesTable= React.createClass({
       q_names.sort();
       return (
         <div className="row">
-            {q_names.map(function(q_name) {
+            {q_names.map(function(q_name, i) {
                 return (
                   <Queue data={queues[q_name]}
                          event={event.q_name == q_name ? event: null}
+                         index={i + 1}
                          key={q_name}/>
                 );
             })}
