@@ -92,7 +92,7 @@ class Queue(object):
     instances = None               # {queue name: queue}
 
     longest_waiting = None
-    talking_channels = {}
+    old_talking_channels = {}
     oldest_join_time = None
     count_waiting = 0
 
@@ -134,10 +134,11 @@ class Queue(object):
             event['count_waiting'] = self.count_waiting
         if old_state['longest_waiting'] != self.longest_waiting:
             event['time_waiting'] = self.time_waiting
-
-        if set(old_state['talking_channels']) != set(self.talking_channels) \
-                or getattr(self.talking_channels, 'force_update', None):
-            event['talking_channels'] =  self.talking_channels
+        talking_channels = self.talking_channels
+        if set(old_state['talking_channels']) != set(talking_channels) \
+                or getattr(talking_channels, 'force_update', None):
+            event['talking_channels'] =  talking_channels
+        print 'eV', event
         if event:
             event['q_name'] = self.name
             Mona.instance.sendEvent(json.dumps(event))
@@ -147,7 +148,8 @@ class Queue(object):
         ''''''
         return self.time_waiting > DANGER_TIME
 
-    def get_talking_channels(self, ):
+    @property
+    def talking_channels(self, ):
         info = MutableDict()
         for client_id, call in self.server.status.queueCalls.items():
             if self.name == call.client['queue']:
@@ -164,11 +166,12 @@ class Queue(object):
                 }
         return info
 
+
     def do_update(self, send_event=True):
         old_state = {
             'count_waiting': self.count_waiting,
             'longest_waiting': self.longest_waiting,
-            'talking_channels': self.talking_channels,
+            'talking_channels': self.old_talking_channels,
         }
         # Determine the longest waiting client
         count_waiting = 0
@@ -184,8 +187,8 @@ class Queue(object):
         self.count_waiting = count_waiting
         self.longest_waiting = longest_waiting
         self.oldest_join_time = join_time
+        self.old_talking_channels = self.talking_channels
         # Get the longest call
-        self.talking_channels = self.get_talking_channels()
         if send_event:
             self.send_event(old_state)
 
