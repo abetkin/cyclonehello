@@ -193,7 +193,6 @@ var Queue = React.createClass({
     },
     formatRow: function(_, i) {
           var time = this.props.event ? this.props.event.time_waiting : null;
-          {/*TODO*/}
           return (
           <tr>
               <td className={this.state.danger?"danger":"success"}>
@@ -208,14 +207,6 @@ var Queue = React.createClass({
               </td>
           </tr>
     )},
-    formatCount: function(){
-        if (this.state.count_waiting == 0) {
-          return undefined;
-        }
-        return (<tr><td><center><h4>
-            {this.state.count_waiting}
-            </h4></center></td></tr>);
-    },
     render: function(){
       var range = [], i = 0;
       if (this.state.count_waiting > 0) {
